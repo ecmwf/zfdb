@@ -8,6 +8,7 @@ from pyeccodes import Reader
 
 from zfdb.GribTools import inspect_grib_indices, scan_gribfile
 
+import pygribjump
 import pyfdb
 import json
 
@@ -51,7 +52,8 @@ class FDBStore(Store):
         self._kwargs = kwargs
         self._dimension_separator = dimension_separator
 
-        self.fdb = pyfdb.FDB(**kwargs)
+        self.gribjump = pygribjump.pygribjump.GribJump()
+        self.fdb = pyfdb.FDB()
 
         self._readable = True
         self._listable = True
@@ -76,14 +78,14 @@ class FDBStore(Store):
         if _key ==".zarray":
             return False
         
-        keys = [json.dumps(el) for el in map(lambda key: key["keys"], self.keylist())]
+        keys = [el for el in map(lambda key: key["keys"], self.keylist())]
 
         if _key.endswith("/.zarray"):
             # Strip zarr specific suffix
-            key = _key.removesuffix("/.zarray")
+            key = json.loads(_key.removesuffix("/.zarray"))
             return key in keys
 
-        if _key.rstrip("/0.0") in keys:
+        if json.loads(_key.rstrip("/0.0")) in keys:
             return True
         else:
             raise KeyError()
@@ -98,15 +100,16 @@ class FDBStore(Store):
             return "{\"zarr_format\": 2}"
 
         if hasattr(key, "keys"):
-            return self.fdb.retrieve(key["keys"])
+            return self.gribjump.extract( (key["keys"], [ (0, 10) ]))
 
         if key.endswith("/.zarray"):
             key = key.removesuffix("/.zarray")
             key = json.loads(key)
 
-            data_retriever = self.fdb.retrieve(key)
-            msgs = scan_gribfile(data_retriever)
-            global_attrs, coords, var_info = inspect_grib_indices(msgs)
+
+            # data_retriever =self.gribjump.extract( (key["keys"], [ (0, 10) ]))
+            # msgs = scan_gribfile(data_retriever)
+            # global_attrs, coords, var_info = inspect_grib_indices(msgs)
 
             # builder = ZarrMetadataBuilder()
             # builder.zarr_format(2)
@@ -126,10 +129,10 @@ class FDBStore(Store):
             return r"""
                 { 
                     "zarr_format": 2,
-                    "dtype": "uint8",
-                    "shape": [3280398, 1],
+                    "dtype": "float64",
+                    "shape": [10, 1],
                     "fill_value": "0",
-                    "chunks": [3280398, 1],
+                    "chunks": [10, 1],
                     "compressor": null,
                     "order": "C",
                     "filters": null
@@ -138,7 +141,8 @@ class FDBStore(Store):
                 # """.format(var_info[('t', 'isobaricInhPa')]["data_shape"][0],
                 #            var_info[('t', 'isobaricInhPa')]["data_shape"][0])
 
-        return next(Reader(self.fdb.retrieve(json.loads(key.rstrip("/0.0")))))._buffer
+        return self.gribjump.extract([(json.loads(key.rstrip("/1.0")), [(0, 10)])])[0][0][0][0]
+        # return next(Reader(self.gribjump.retrieve(json.loads(key.rstrip("/0.0")))))._buffer
 
 
 

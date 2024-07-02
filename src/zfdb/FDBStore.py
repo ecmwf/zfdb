@@ -77,7 +77,7 @@ class FDBStore(Store):
         # We are implementing a view
         if _key ==".zarray":
             return False
-        
+
         keys = [el for el in map(lambda key: key["keys"], self.keylist())]
 
         if _key.endswith("/.zarray"):
@@ -85,7 +85,7 @@ class FDBStore(Store):
             key = json.loads(_key.removesuffix("/.zarray"))
             return key in keys
 
-        if json.loads(_key.rstrip("/0.0")) in keys:
+        if json.loads(_key.rstrip("/0.0.0.0")) in keys:
             return True
         else:
             raise KeyError()
@@ -99,15 +99,10 @@ class FDBStore(Store):
         if key == ".zgroup":
             return "{\"zarr_format\": 2}"
 
-        if hasattr(key, "keys"):
-            return self.gribjump.extract( (key["keys"], [ (0, 10) ]))
-
         if key.endswith("/.zarray"):
             key = key.removesuffix("/.zarray")
             key = json.loads(key)
 
-
-            # data_retriever =self.gribjump.extract( (key["keys"], [ (0, 10) ]))
             # msgs = scan_gribfile(data_retriever)
             # global_attrs, coords, var_info = inspect_grib_indices(msgs)
 
@@ -130,41 +125,27 @@ class FDBStore(Store):
                 { 
                     "zarr_format": 2,
                     "dtype": "float64",
-                    "shape": [10, 1],
+                    "shape": [1, 1, 1, 542080],
                     "fill_value": "0",
-                    "chunks": [10, 1],
+                    "chunks": [1, 1, 1, 542080],
                     "compressor": null,
                     "order": "C",
                     "filters": null
                 }
                 """
-                # """.format(var_info[('t', 'isobaricInhPa')]["data_shape"][0],
-                #            var_info[('t', 'isobaricInhPa')]["data_shape"][0])
 
-        return self.gribjump.extract([(json.loads(key.rstrip("/1.0")), [(0, 10)])])[0][0][0][0]
-        # return next(Reader(self.gribjump.retrieve(json.loads(key.rstrip("/0.0")))))._buffer
-
+        return self.gribjump.extract([(json.loads(key.rstrip("/1.0")), [(0, 542080)])])[0][0][0][0]
 
 
     def __setitem__(self, key, value):
         raise NotImplementedError("This method is not implemented")
-        # value = ensure_bytes(value)
-        # self.client[self._key(key)] = value
 
     def __delitem__(self, key):
         raise NotImplementedError("This method is not implemented")
-        # count = self.client.delete(self._key(key))
-        # if not count:
-        #     raise KeyError(key)
 
     def keylist(self):
         listIterator = self.fdb.list(keys=True)
-
         return [it for it in listIterator]
-        # raise NotImplementedError("This method is not implemented")
-        # Should probably implement some kind of list() operation
-        # offset = len(self._key(""))  # length of prefix
-        # return [key[offset:].decode("utf-8") for key in self.client.keys(self._key("*"))]
 
     def __iter__(self):
         yield from self.keylist()

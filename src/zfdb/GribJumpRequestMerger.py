@@ -16,26 +16,44 @@ class GribJumpRequestMerger:
     """
     def request(self, mars_request: dict):
         gj_axes = self.gj.axes(mars_request)
-        time_dim = len(gj_axes['date'])
-
-        print("***** Slices {} ********************".format(len(gj_axes["date"])))
-        print(GribJumpRequestMerger._subrequests(mars_request, "date", gj_axes["date"]))
-        print("****************************")
-
-        gj_result = self.gj.extract([(mars_request, [(0, 1 * 542080)])])
 
         flattened_array = []
-
-        for i in range(time_dim):
-            flattened_array.append(gj_result[0][i][0][0])
+        all_requests =  GribJumpRequestMerger._assemble_all_subrequests(mars_request, gj_axes)
+        
+        for subreq in all_requests["date"]:
+            gj_result = self.gj.extract([(subreq, [(0, 1 * 542080)])])
+            # flattened_array.append(gj_result[0][i][0][0])
+            flattened_array.append(gj_result[0][0][0][0])
 
         return np.concatenate(flattened_array)
+
+    def _assemble_all_subrequests(mars_request: dict, gj_axes):
+
+        # Why is the axes object returning more values than specified in mars request?
+        date_keys = sorted(mars_request["date"].split("/"))
+        param_keys = sorted(mars_request["param"].split("/"))
+
+        date_requests = GribJumpRequestMerger._subrequests(mars_request, "date", date_keys)
+
+        requests = {
+                "date": []
+                }
+        
+        for date_request in date_requests:
+            param_requests = GribJumpRequestMerger._subrequests(date_request, "param", param_keys) 
+            for param_request in param_requests:
+                requests["date"].append(param_request)
+
+        return requests
+
+
+
 
     @staticmethod
     def _subrequests(mars_request: dict, key: str, values: [str]):
         list_subrequests = []
 
-        for v in values:
+        for v in sorted(values):
             sub_mars_request = copy.deepcopy(mars_request)
             sub_mars_request[key] = v
             list_subrequests.append(sub_mars_request)
@@ -51,4 +69,4 @@ class GribJumpRequestMerger:
 
     def zarr_metadata(self, mars_request: dict):
         gj_axes = self.gj.axes(mars_request)
-        return ZarrMetadataBuilder().default(gj_axes)
+        return ZarrMetadataBuilder().default(mars_request)

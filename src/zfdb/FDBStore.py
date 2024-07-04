@@ -6,13 +6,15 @@ from typing import Optional, List
 
 from pyeccodes import Reader
 
+from zfdb.GribJumpRequestMerger import GribJumpRequestMerger
 from zfdb.GribTools import inspect_grib_indices, scan_gribfile
 
-import pygribjump
 import pyfdb
 import json
+import numpy as np
 
-from zfdb.ZarrMetadataBuilder import ZarrMetadataBuilder
+from zfdb.ZarrKeyMatcher import ZarrKeyMatcher
+from zfdb.GribJumpRequestMerger import GribJumpRequestMerger
 
 class FDBKey:
     def __init__(self, key) -> None:
@@ -52,7 +54,7 @@ class FDBStore(Store):
         self._kwargs = kwargs
         self._dimension_separator = dimension_separator
 
-        self.gribjump = pygribjump.pygribjump.GribJump()
+        self.gribjump_merger = GribJumpRequestMerger()
         self.fdb = pyfdb.FDB()
 
         self._readable = True
@@ -78,14 +80,15 @@ class FDBStore(Store):
         if _key ==".zarray":
             return False
 
-        keys = [el for el in map(lambda key: key["keys"], self.keylist())]
-
+        # Check for zarrar meta data avaialability
         if _key.endswith("/.zarray"):
             # Strip zarr specific suffix
-            key = json.loads(_key.removesuffix("/.zarray"))
-            return key in keys
+            key = ZarrKeyMatcher.strip_metadatafile(_key)
+            return self.gribjump_merger.existing(key)
 
-        if json.loads(_key.rstrip("/0.0.0.0")) in keys:
+        # Check for the actual data
+        stripped_key = ZarrKeyMatcher.strip_chunking(_key, 4)
+        if self.gribjump_merger.existing(stripped_key):
             return True
         else:
             raise KeyError()
@@ -95,47 +98,18 @@ class FDBStore(Store):
 
     def __getitem__(self, key):
 
+        print("Current get-item request:", key)
+
         # Faking the zarr 2 file format
         if key == ".zgroup":
             return "{\"zarr_format\": 2}"
 
         if key.endswith("/.zarray"):
-            key = key.removesuffix("/.zarray")
-            key = json.loads(key)
+            key = ZarrKeyMatcher.strip_metadatafile(key)
+            return self.gribjump_merger.zarr_metadata(key)
 
-            # msgs = scan_gribfile(data_retriever)
-            # global_attrs, coords, var_info = inspect_grib_indices(msgs)
-
-            # builder = ZarrMetadataBuilder()
-            # builder.zarr_format(2)
-            # builder.dtype(var_info["dtype"])
-            # builder.shape(var_info["sh"])
-            # json_tes = builder.build()
-            #
-            # return json_tes
-                    # "compressor": { 
-                    #     "blocksize": 0, 
-                    #     "clevel": 5, 
-                    #     "cname": "lz4", 
-                    #     "id": "blosc", 
-                    #     "shuffle": 1 
-                    # }, 
-
-            return r"""
-                { 
-                    "zarr_format": 2,
-                    "dtype": "float64",
-                    "shape": [1, 1, 1, 542080],
-                    "fill_value": "0",
-                    "chunks": [1, 1, 1, 542080],
-                    "compressor": null,
-                    "order": "C",
-                    "filters": null
-                }
-                """
-
-        return self.gribjump.extract([(json.loads(key.rstrip("/1.0")), [(0, 542080)])])[0][0][0][0]
-
+        mars_request = ZarrKeyMatcher.strip_chunking(key, 4)
+        return self.gribjump_merger.request(mars_request)
 
     def __setitem__(self, key, value):
         raise NotImplementedError("This method is not implemented")

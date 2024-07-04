@@ -23,7 +23,7 @@ class ZarrMetadataBuilder:
     """
 
     def __init__(self):
-        self._zarr_format = None
+        self._zarr_format = 2
         self._dtype = None
         self._shape = None
         self._fill_value =None
@@ -31,6 +31,26 @@ class ZarrMetadataBuilder:
         self._compressor =None
         self._order = None
         self._filters = None
+
+    def default(self, gj_axis):
+        """
+        This is for now returning hard-coded values for the field sizes
+        as well as setting up things to work with the gribjump axis object
+        """
+
+        time_dim = len(gj_axis['date'])
+
+        metadata = ZarrMetadataBuilder()
+        metadata.zarr_format(2)
+        metadata.dtype("float64")
+        metadata.shape([time_dim, 1, 1, 542080])
+        metadata.fill_value(0)
+        metadata.chunks([time_dim, 1, 1, 542080])
+        metadata.compressor(None)
+        metadata.order("C")
+        metadata.filters(None)
+
+        return metadata.build()
     
     def zarr_format(self, zarr_Version):
         self._zarr_format = zarr_Version

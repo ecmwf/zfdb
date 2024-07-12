@@ -46,9 +46,6 @@ class GribJumpRequestMerger:
 
         return requests
 
-
-
-
     @staticmethod
     def _subrequests(mars_request: dict, key: str, values: [str]):
         list_subrequests = []

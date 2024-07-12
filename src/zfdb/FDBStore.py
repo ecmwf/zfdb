@@ -16,14 +16,6 @@ import numpy as np
 from zfdb.ZarrKeyMatcher import ZarrKeyMatcher
 from zfdb.GribJumpRequestMerger import GribJumpRequestMerger
 
-class FDBKey:
-    def __init__(self, key) -> None:
-        self._keys  = key["keys"]
-        self._path  = key["path"]
-        self._offset  = key["offset"]
-        self._length  = key["length"]
-
-
 class FDBStore(Store):
     """Storage class using FDB.
 
@@ -61,9 +53,6 @@ class FDBStore(Store):
         self._listable = True
         self._erasable = False
         self._writeable = False
-
-        # TODO(TKR) Hardcoded for now
-        self._path = "/Users/tkremer/.local/fdb5-space/"
     
     def __contains__(self, _key) -> bool:
 
@@ -97,8 +86,6 @@ class FDBStore(Store):
         return f"{self._prefix}:{key}"
 
     def __getitem__(self, key):
-
-        print("Current get-item request:", key)
 
         # Faking the zarr 2 file format
         if key == ".zgroup":

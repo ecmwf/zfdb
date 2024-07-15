@@ -1,20 +1,13 @@
-from numpy import true_divide, who
+import json
+from typing import List, Optional
+
+import pyfdb
 from zarr.storage import Store
 from zarr.types import DIMENSION_SEPARATOR
 
-from typing import Optional, List
-
-from pyeccodes import Reader
-
 from zfdb.GribJumpRequestMerger import GribJumpRequestMerger
-from zfdb.GribTools import inspect_grib_indices, scan_gribfile
-
-import pyfdb
-import json
-import numpy as np
-
 from zfdb.ZarrKeyMatcher import ZarrKeyMatcher
-from zfdb.GribJumpRequestMerger import GribJumpRequestMerger
+
 
 class FDBStore(Store):
     """Storage class using FDB.
@@ -36,12 +29,11 @@ class FDBStore(Store):
     """
 
     def __init__(
-            self, 
-            prefix="", 
-            dimension_separator: Optional[DIMENSION_SEPARATOR] = None, 
-            **kwargs
+        self,
+        prefix="",
+        dimension_separator: Optional[DIMENSION_SEPARATOR] = None,
+        **kwargs,
     ):
-
         self._prefix = prefix
         self._kwargs = kwargs
         self._dimension_separator = dimension_separator
@@ -53,49 +45,60 @@ class FDBStore(Store):
         self._listable = True
         self._erasable = False
         self._writeable = False
-    
-    def __contains__(self, _key) -> bool:
 
-        # Avoid initialization of the zarr store
-        # We are implementing a view
+    def __contains__(self, _key) -> bool:
         if _key == ".zgroup":
             return True
 
-        if _key.endswith(".zgroup"):
-            return False
-
         # Avoid initialization of the zarr array
         # We are implementing a view
-        if _key ==".zarray":
+        if _key == ".zarray":
+            return False
+        
+        if ZarrKeyMatcher.is_group_shape_information(_key):
             return False
 
-        # Check for zarrar meta data avaialability
-        if _key.endswith("/.zarray"):
-            # Strip zarr specific suffix
-            key = ZarrKeyMatcher.strip_metadatafile(_key)
-            return self.gribjump_merger.existing(key)
-
-        # Check for the actual data
-        stripped_key = ZarrKeyMatcher.strip_chunking(_key, 4)
-        if self.gribjump_merger.existing(stripped_key):
+        if ZarrKeyMatcher.has_chunking(_key):
+            mars_request = ZarrKeyMatcher.strip_chunking(_key)
             return True
-        else:
-            raise KeyError()
+            # return self.gribjump_merger.request(mars_request)
+
+        mars_request = ZarrKeyMatcher.strip_metadata_remove_group_hiearchy(_key)
+        fully_specified = self.gribjump_merger.is_full_specified_request(mars_request)
+
+        if ZarrKeyMatcher.is_group(_key):
+            if fully_specified:
+                return False
+            else:
+                return True
+            # return not self.gribjump_merger.is_full_specified_request(mars_request):
+
+        if ZarrKeyMatcher.is_array(_key):
+            if fully_specified:
+                return True
+            else:
+                return False
+            # return self.gribjump_merger.is_full_specified_request(mars_request):
+
+        return False
 
     def _key(self, key):
         return f"{self._prefix}:{key}"
 
     def __getitem__(self, key):
-
         # Faking the zarr 2 file format
         if key == ".zgroup":
-            return "{\"zarr_format\": 2}"
+            return '{"zarr_format": 2}'
 
-        if key.endswith("/.zarray"):
-            key = ZarrKeyMatcher.strip_metadatafile(key)
+        if ZarrKeyMatcher.is_array(key):
+            key = ZarrKeyMatcher.strip_metadata_remove_group_hiearchy(key)
             return self.gribjump_merger.zarr_metadata(key)
 
-        mars_request = ZarrKeyMatcher.strip_chunking(key, 4)
+        if ZarrKeyMatcher.is_group(key):
+            key = ZarrKeyMatcher.strip_metadata_remove_group_hiearchy(key)
+            return '{"zarr_format": 2}'
+
+        mars_request = ZarrKeyMatcher.strip_chunking_remove_group_hierarchy(key)
         return self.gribjump_merger.request(mars_request)
 
     def __setitem__(self, key, value):
@@ -142,4 +145,3 @@ class FDBStore(Store):
         #     )  # pragma: no cover
         # path = normalize_storage_path(path)
         # _rmdir_from_keys(self, path)
-

@@ -61,6 +61,29 @@ class GribJumpRequestMerger:
     def forward(self, mars_request: dict):
         return self.gj.extract([(mars_request, [(0, 542080)])])[0][0][0][0]
 
+    def is_full_specified_request(self, mars_request: dict):
+        axes = self.gj.axes(mars_request)
+
+        if(len(axes) != len(mars_request)):
+            return False
+
+        # Flatten 1D keys
+        for key in mars_request.keys():
+            if(len(axes[key]) == 1):
+                axes[key] = axes[key][0]
+
+        for key in axes.keys():
+            # Levellist bug? Returing all keys although only one is specfied
+            if key in ["levelist", "param", "step" ]:
+                continue
+            
+            # Axes consists out of a range for a key, so the request wasn't
+            # fully specified
+            if axes[key] != mars_request[key]:
+                return False
+
+        return True
+
     def existing(self, mars_request: dict):
         return len(self.gj.extract([(mars_request, [(0, 542080)])])[0][0][0][0]) > 0
 

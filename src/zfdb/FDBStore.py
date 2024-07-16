@@ -2,6 +2,7 @@ import json
 from typing import List, Optional
 
 import pyfdb
+from zarr import hierarchy
 from zarr.storage import Store
 from zarr.types import DIMENSION_SEPARATOR
 
@@ -55,6 +56,29 @@ class FDBStore(Store):
         if _key == ".zarray":
             return False
         
+        if ZarrKeyMatcher.is_group(_key):
+            mars_request = ZarrKeyMatcher.merge_group_information_into_mars_request(_key)
+
+            if mars_request is None:
+                return False
+
+            if self.gribjump_merger.is_full_specified_request(mars_request):
+                return False
+            else:
+                return True
+            # return not self.gribjump_merger.is_full_specified_request(mars_request):
+
+        if ZarrKeyMatcher.is_array(_key):
+            mars_request = ZarrKeyMatcher.merge_group_information_into_mars_request(_key)
+
+            if mars_request is None:
+                return False
+
+            if self.gribjump_merger.is_full_specified_request(mars_request):
+                return True
+            else:
+                return False
+
         if ZarrKeyMatcher.is_group_shape_information(_key):
             return False
 
@@ -63,22 +87,7 @@ class FDBStore(Store):
             return True
             # return self.gribjump_merger.request(mars_request)
 
-        mars_request = ZarrKeyMatcher.strip_metadata_remove_group_hiearchy(_key)
-        fully_specified = self.gribjump_merger.is_full_specified_request(mars_request)
 
-        if ZarrKeyMatcher.is_group(_key):
-            if fully_specified:
-                return False
-            else:
-                return True
-            # return not self.gribjump_merger.is_full_specified_request(mars_request):
-
-        if ZarrKeyMatcher.is_array(_key):
-            if fully_specified:
-                return True
-            else:
-                return False
-            # return self.gribjump_merger.is_full_specified_request(mars_request):
 
         return False
 

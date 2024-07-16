@@ -3,6 +3,8 @@ import zarr
 from zfdb import *
 from zfdb.FDBStore import FDBStore
 
+from zfdb.requests import Request
+
 def test_initialization():
     store = FDBStore()
     root = zarr.group(store=store, chunk_store=None)
@@ -14,30 +16,44 @@ def test_initialization():
     # cube = root.group["class=od,domain='g'"]
     # cube = cube.group["type=fc"]
     # tmp = cube[date=["20240601", "20240602"],number=["1" ,... , "50"]]
+
     # ranges are tricky to implement. TODO: HOW TO MATCH KEYS?
-    virutal_group = root[ '{"class": "ai", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "1000", "param": "129", "step": "0"}' ]
-    tmp = root[ '{"class": "ai", "date": "20240601", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "1000", "param": "129", "step": "0"}' ]
+    # tmp = root[ '{"class": "ai", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "1000", "param": "129", "step": "0"}' ]
+    ai_group = root['{"class": "ai"}']
+    ai_date_group = ai_group['{"date": "20240601"}']
+
+    req = Request({"domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "1000", "param": "129", "step": "0"}) 
+
+    # tmp = ai_date_group[ '{"domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "1000", "param": "129", "step": "0"}' ]
+    # tmp = ai_date_group[ '{"domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "1000", "param": "129", "step": "0"}' ]
+    ai_date_param_group = ai_date_group['{"param": "129"}']
+    subselection_group = ai_date_group['{"param": "129",  "time": "0000", "levelist": "1000"}']
+    tmp = subselection_group[ '{"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": "0"}' ]
 
     print("------ General accessability test ---------------")
     print(tmp.shape)
     print(tmp)
-    print(virutal_group.tree())
+    print(subselection_group.tree())
+    print(subselection_group.info)
+    # print(ai_date_param_group)
+    # print(ai_date_param_group.tree())
+    # print(ai_date_param_group.info)
     print("\n")
     print("------ Retrieving a field ---------------")
-    print(tmp[0, 0, 0, :])
+    # print(tmp[0, 0, 0, :])
 
-    print("-----------------Levellist: 1000-----------------")
-    print("**************** Subsection of 20240601/129/1000 - indices 10 to 20 **********")
-    print(tmp[0, 0, 0, 10:20].shape)
-    print(tmp[0, 0, 0, 10:20])
-    print("\n")
+    # print("-----------------Levellist: 1000-----------------")
+    # print("**************** Subsection of 20240601/129/1000 - indices 10 to 20 **********")
+    # print(tmp[0, 0, 0, 10:20].shape)
+    # print(tmp[0, 0, 0, 10:20])
+    # print("\n")
 
-    print("------------Levellist: 850-----------------")
-    print("**************** Subsection of 20240601/129/850 - indices 10 to 20 **********")
-    tmp_850 = root[ '{"class": "ai", "date": "20240601", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
-    print(tmp_850[0, 0, 0, 10:20].shape)
-    print(tmp_850[0, 0, 0, 10:20])
-    print("\n")
+    # print("------------Levellist: 850-----------------")
+    # print("**************** Subsection of 20240601/129/850 - indices 10 to 20 **********")
+    # tmp_850 = root[ '{"class": "ai", "date": "20240601", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
+    # print(tmp_850[0, 0, 0, 10:20].shape)
+    # print(tmp_850[0, 0, 0, 10:20])
+    # print("\n")
 
     # print("-----------------Timeslice: -----------------")
     # print("**************** Subsection of 20240601/20240602/20240603/129/850 - indices 10 to 20 **********")
@@ -45,18 +61,18 @@ def test_initialization():
     # print("Shape of whole request:", tmp_time_slice[0:3, 0, 0, :].shape)
     # print(tmp_time_slice[0:3, 0, 0, 10:20])
 
-    print("-----------------Subsection Individual: -----------------")
-    tmp_850_2 = root[ '{"class": "ai", "date": "20240602", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
-    tmp_850_3 = root[ '{"class": "ai", "date": "20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
-
-    print("**************** Subsection of 20240601/129/850 - indices 10 to 20 **********")
-    print(tmp_850[0, 0, 0, 10:20])
-    print("**************** Subsection of 20240602/129/850 - indices 10 to 20 **********")
-    print(tmp_850_2[0, 0, 0, 10:20])
-    print("**************** Subsection of 20240603/129/850 - indices 10 to 20 **********")
-    print(tmp_850_3[0, 0, 0, 10:20])
-    print("\n")
-
+    # print("-----------------Subsection Individual: -----------------")
+    # tmp_850_2 = root[ '{"class": "ai", "date": "20240602", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
+    # tmp_850_3 = root[ '{"class": "ai", "date": "20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
+    #
+    # print("**************** Subsection of 20240601/129/850 - indices 10 to 20 **********")
+    # print(tmp_850[0, 0, 0, 10:20])
+    # print("**************** Subsection of 20240602/129/850 - indices 10 to 20 **********")
+    # print(tmp_850_2[0, 0, 0, 10:20])
+    # print("**************** Subsection of 20240603/129/850 - indices 10 to 20 **********")
+    # print(tmp_850_3[0, 0, 0, 10:20])
+    # print("\n")
+    #
     # print("-----------------Slicing Subgrid: -----------------")
     # print("**************** Subsection of 20240601/20240602/20240603/129/850 **********")
     # tmp_time_slice = root[ '{"class": "ai", "date": "20240601/20240602/20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]

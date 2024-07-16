@@ -25,6 +25,31 @@ class ZarrKeyMatcher:
     
         return ZarrKeyMatcher.remove_group_hierachy(key_without_chunking)
 
+
+    @staticmethod
+    def merge_group_information_into_mars_request(key: str) -> dict[str, str] | None:
+        """
+        """
+        chunking_str =  r"({[^}]+\})+"
+        occurrences = [x for x in re.finditer(chunking_str, key)]
+
+        dicts =  [json.loads(occ[0]) for occ in occurrences]
+
+        # Merge dicts to one mars request
+        result = {}
+
+        for d in dicts:
+            for new_key in d.keys():
+                if new_key in result.keys():
+                    # TODO:(TKR) This is only working up to commutative params...
+                    if not d[new_key] in result[new_key]:
+                        # In case of disambiguity 
+                        return None
+
+            result.update(d)
+
+        return result
+
     @staticmethod
     def has_chunking(key: str) -> bool:
         chunking_str =  r"}/[^.][\d\.]+"
@@ -54,6 +79,10 @@ class ZarrKeyMatcher:
         """
         key = _key.removesuffix("/.zarray")
         key = key.removesuffix("/.zgroup")
+        # Nicely done Zarr...
+        key = key.removesuffix("/shape")
+        key = key.removesuffix("/dtype")
+
         return json.loads(key)
 
     @staticmethod
@@ -81,6 +110,8 @@ class ZarrKeyMatcher:
             final_key = occurrences[-1][0]
         else:
             final_key = key
+
+        final_key = final_key.removesuffix("/")
 
         return json.loads(final_key)
 

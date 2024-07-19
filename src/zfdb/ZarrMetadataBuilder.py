@@ -38,15 +38,15 @@ class ZarrMetadataBuilder:
         as well as setting up things to work with the gribjump axis object
         """
 
-        # time_dim = len(mars_request['date'].split("/"))
-        # param_dim = len(mars_request['param'].split("/"))
+        time_dim = len(mars_request['date'])
+        param_dim = len(mars_request['param'])
 
         metadata = ZarrMetadataBuilder()
         metadata.zarr_format(2)
         metadata.dtype("float64")
-        metadata.shape([1, 1, 1, 542080])
+        metadata.shape([time_dim, 1, param_dim, 542080])
         metadata.fill_value(0)
-        metadata.chunks([1, 1, 1, 542080])
+        metadata.chunks([time_dim, 1, param_dim, 542080])
         metadata.compressor(None)
         metadata.order("C")
         metadata.filters(None)

@@ -1,17 +1,23 @@
+from copy import deepcopy
 import re
 import json
+from sys import prefix
+
+from numpy import who
+
+from zfdb.requests.Request import Request
 
 class ZarrKeyMatcher:
     @staticmethod
-    def strip_chunking(key: str) -> dict[str, str]:
+    def strip_chunking(key: Request) -> Request:
         """
         Strips chunking information from a key and returns
         the key as a dictionary
         """
-        chunking_str =  r'}/[^.][\d\.+]+'
-        key_without_chunking = re.sub(chunking_str, "}", key)
-
-        return json.loads(key_without_chunking)
+        if ZarrKeyMatcher.has_chunking(key):
+            return Request(prefix=deepcopy(key.prefix), keys=deepcopy(key.keys), postfix=None)
+        else:
+            return key
 
     @staticmethod
     def extract_chunking(key: str) -> list[str] | None:
@@ -19,11 +25,16 @@ class ZarrKeyMatcher:
         Strips chunking information from a key and returns
         the key as a dictionary
         """
-        chunking_str =  r'[^.{/][\d\.+]+'
+        chunking_str =  r'(?:/)(\d+(\.\d+)+)'
         result_list = re.findall(chunking_str, key)
 
+
+        # TODO: (TKR) Make this nicer
         if len(result_list) > 0:
-            return result_list[0]
+            if isinstance(result_list[0], tuple) and len(result_list[0]) > 1:
+                return result_list[0][0]
+            else:
+                return result_list[0]
         else:
             return None
 
@@ -67,17 +78,25 @@ class ZarrKeyMatcher:
         return result
 
     @staticmethod
-    def has_chunking(key: str) -> bool:
-        chunking_str =  r"}/[^.][\d\.]+"
-        return re.search(chunking_str, key) is not None
+    def has_chunking(key: Request) -> bool:
+        if key.postfix is None:
+            return False
+
+        chunking_str =  r"[^.][\d\.]+"
+        return re.search(chunking_str, key.postfix) is not None
 
     @staticmethod
-    def is_array(key: str) -> bool:
-        return key.endswith("/.zarray")
+    def is_array(key: Request) -> bool:
+        if key.postfix is None:
+            return False
+        return key.postfix.endswith(".zarray")
 
     @staticmethod
-    def is_group(key: str) -> bool:
-        return key.endswith("/.zgroup")
+    def is_group(key: Request) -> bool:
+        if key.postfix is None:
+            return False
+        return key.postfix.endswith(".zgroup")
+
     
     @staticmethod
     def strip_metadatafile(key: str) -> dict[str, str]:
@@ -119,21 +138,27 @@ class ZarrKeyMatcher:
     def remove_group_hierachy(key: str) -> dict[str, str]:
         """
         """
+
+        # Doesn't match zarr post fixed like
         chunking_str =  r"{([^}]+)}/?"
         occurrences = [x for x in re.finditer(chunking_str, key)]
 
         if len(occurrences) > 0 : 
-            final_key = occurrences[-1][0]
+            raw_request_str = occurrences[-1][0]
         else:
             final_key = key
 
-        final_key = final_key.removesuffix("/")
+        pos_begin_substr = key.find(raw_request_str)
 
-        return json.loads(final_key)
+        # 
+        return json.loads(key[pos_begin_substr:])
 
 
     @staticmethod
-    def is_group_shape_information(key: str) -> bool:
+    def is_group_shape_information(request: Request) -> bool:
         """
         """
-        return key.endswith("/shape/.zarray") or key.endswith("/dtype/.zarray")
+        if request.postfix is None:
+            return False
+
+        return request.postfix.endswith("/shape/.zarray") or request.postfix.endswith("/dtype/.zarray")

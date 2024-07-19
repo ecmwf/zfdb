@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from tests.utils.Utils import TestUtils
 from zfdb.requests.Request import Request, RequestMapper
 
 
@@ -24,6 +25,23 @@ class TestRequest:
         assert request.keys == keys
         assert request.prefix is None
         assert request.postfix is None
+
+    def test_remove_group_hierachy(self):
+        request = TestUtils.build_example_zarray_with_prefix_and_postfix()
+
+        request_without_group = request.remove_group_hierachy()
+
+        assert request_without_group.prefix is None
+        assert request_without_group.prefix != request.prefix
+
+    def test_remove_postfix(self):
+        request = TestUtils.build_example_zarray_with_prefix_and_postfix()
+
+        request_without_postfix = request.remove_postfix()
+
+        assert request_without_postfix.postfix is None
+        assert request_without_postfix.postfix != request.postfix
+
 
 
 class TestRequestMapper:

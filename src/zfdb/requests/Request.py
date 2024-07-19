@@ -1,10 +1,9 @@
 import json
-from logging import raiseExceptions
 import re
 from typing import Self
 
+from copy import deepcopy
 
-from zfdb.ZarrKeyMatcher import ZarrKeyMatcher
 
 class Request:
 
@@ -21,17 +20,24 @@ class Request:
 
         return cls(keys=keys, prefix=prefix, postfix=postfix)
 
-    def __add__(self, other):
-        if isinstance(other, str):
-            self.postfix = other
-        else:
-            raise RuntimeError("__add__: Other operant isn't of type string")
+    def remove_group_hierachy(self):
+        return Request(prefix=None, keys=deepcopy(self.keys), postfix=deepcopy(self.postfix))
 
-    def __radd__(self, other):
-        if isinstance(other, str):
-            self.prefix = other
-        else:
-            raise RuntimeError("")
+    def remove_postfix(self):
+        return Request(prefix=deepcopy(self.prefix), keys=deepcopy(self.keys), postfix=None)
+
+    def build_mars_request(self) -> dict[str, list[str]]:
+        if self.prefix is None:
+            return self.keys
+
+        resulting_dict = {}
+
+        for req in self.prefix:
+            resulting_dict |= req.keys
+
+        resulting_dict |= self.keys
+
+        return resulting_dict
 
     def __str__(self) -> str:
         result = ""
@@ -48,18 +54,6 @@ class Request:
             result += self.postfix
 
         return result
-
-    def full_request(self):
-        if self.prefix is not None and len(self.prefix) > 0:
-            result = dict(self.prefix[0].keys)
-
-            for dicts in self.prefix:
-                result = result | dicts.keys
-
-            return Request(result)
-        else:
-            return Request(self.keys)
-
 
 
 class RequestMapper:
@@ -124,6 +118,7 @@ class RequestMapper:
                 postfix = possible_postfixes[-1]
 
 
+        from zfdb.ZarrKeyMatcher import ZarrKeyMatcher
         chunking_info = ZarrKeyMatcher.extract_chunking(str_repr)
 
         if chunking_info is not None:

@@ -4,7 +4,19 @@ import numpy as np
 import copy
 
 from zfdb.ZarrMetadataBuilder import ZarrMetadataBuilder
-from zfdb.requests.Request import Request
+from zfdb.requests.Request import Request 
+
+class GribJumpRequestMapper:
+
+    @staticmethod
+    def to_grib_jump(dictonary: dict[str, list[str]]) -> dict[str, str]:
+        pygribjump_dict = {}
+
+        for key in dictonary.keys():
+            pygribjump_dict[key] = "/".join(dictonary[key])
+
+        return pygribjump_dict
+
 
 class GribJumpRequestMerger:
 
@@ -15,11 +27,14 @@ class GribJumpRequestMerger:
     Divides a given mars request into several individual GribJump requests
     and merge the result to the wished data layout
     """
-    def request(self, mars_request: dict):
-        gj_axes = self.gj.axes(mars_request)
+    def request(self, mars_request: dict[str, list[str]]):
+
+        gribjump_request = GribJumpRequestMapper.to_grib_jump(mars_request)
+        
+        gj_axes = self.gj.axes(gribjump_request)
 
         flattened_array = []
-        all_requests =  GribJumpRequestMerger._assemble_all_subrequests(mars_request, gj_axes)
+        all_requests =  GribJumpRequestMerger._assemble_all_subrequests(gribjump_request, gj_axes)
         
         for subreq in all_requests["date"]:
             gj_result = self.gj.extract([(subreq, [(0, 1 * 542080)])])
@@ -59,8 +74,11 @@ class GribJumpRequestMerger:
         return list_subrequests
 
 
-    def forward(self, mars_request: dict):
-        return self.gj.extract([(mars_request, [(0, 542080)])])[0][0][0][0]
+    def forward(self, mars_request: dict[str, list[str]]):
+
+        pygribjump_request = GribJumpRequestMapper.to_grib_jump(mars_request)
+
+        return self.gj.extract([(pygribjump_request, [(0, 542080)])])[0][0][0][0]
 
     def axes(self, mars_request: dict):
         return self.gj.axes(mars_request)
@@ -88,22 +106,25 @@ class GribJumpRequestMerger:
         #
         # return True
 
-        full_request = mars_request.full_request()
+        full_request = mars_request.build_mars_request()
+        mars_keys = full_request.keys()
 
-        if len(full_request.keys) < 11:
+        if len(mars_keys) < 11:
             return False
 
-        for key in full_request.keys.keys():
-            values =  full_request.keys[key]
+        for key in mars_keys:
+            if key in ["date", "param", "levelist"]:
+                continue
+            values =  full_request[key]
             if isinstance(values, list) and len(values) != 1:
                 return False
 
         return True
 
 
-    def existing(self, mars_request: dict):
-        return len(self.gj.extract([(mars_request, [(0, 542080)])])[0][0][0][0]) > 0
+    def existing(self, mars_request: dict[str, list[str]]):
+        pygribjump_request = GribJumpRequestMapper.to_grib_jump(mars_request)
+        return len(self.gj.extract([(pygribjump_request, [(0, 542080)])])[0][0][0][0]) > 0
 
-    def zarr_metadata(self, mars_request: dict):
-        gj_axes = self.gj.axes(mars_request)
+    def zarr_metadata(self, mars_request: dict[str, list[str]]):
         return ZarrMetadataBuilder().default(mars_request)

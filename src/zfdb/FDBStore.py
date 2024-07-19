@@ -8,6 +8,7 @@ from zarr.types import DIMENSION_SEPARATOR
 
 from zfdb.GribJumpRequestMerger import GribJumpRequestMerger
 from zfdb.ZarrKeyMatcher import ZarrKeyMatcher
+from zfdb.requests.Request import Request, RequestMapper
 
 
 class FDBStore(Store):
@@ -55,26 +56,30 @@ class FDBStore(Store):
         # We are implementing a view
         if _key == ".zarray":
             return False
+
+        request:Request = RequestMapper.map_from_str(_key)
         
         if ZarrKeyMatcher.is_group(_key):
-            mars_request = ZarrKeyMatcher.merge_group_information_into_mars_request(_key)
+            mars_request = ZarrKeyMatcher.merge_group_information_into_mars_request(str(request))
+            # TODO: Combine prefix to a under-specified mars request and check
+            # whether it's in the axis object.
 
             if mars_request is None:
                 return False
 
-            if self.gribjump_merger.is_full_specified_request(mars_request):
-                return False
-            else:
-                return True
+            # if self.gribjump_merger.is_full_specified_request(request.full_request()):
+            #     return False
+            # else:
+            return True
             # return not self.gribjump_merger.is_full_specified_request(mars_request):
 
         if ZarrKeyMatcher.is_array(_key):
-            mars_request = ZarrKeyMatcher.merge_group_information_into_mars_request(_key)
+            mars_request = ZarrKeyMatcher.merge_group_information_into_mars_request(str(request))
 
             if mars_request is None:
                 return False
 
-            if self.gribjump_merger.is_full_specified_request(mars_request):
+            if self.gribjump_merger.is_full_specified_request(request.full_request()):
                 return True
             else:
                 return False
@@ -86,8 +91,6 @@ class FDBStore(Store):
             mars_request = ZarrKeyMatcher.strip_chunking(_key)
             return True
             # return self.gribjump_merger.request(mars_request)
-
-
 
         return False
 

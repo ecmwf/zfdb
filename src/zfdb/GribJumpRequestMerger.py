@@ -4,6 +4,7 @@ import numpy as np
 import copy
 
 from zfdb.ZarrMetadataBuilder import ZarrMetadataBuilder
+from zfdb.requests.Request import Request
 
 class GribJumpRequestMerger:
 
@@ -64,7 +65,7 @@ class GribJumpRequestMerger:
     def axes(self, mars_request: dict):
         return self.gj.axes(mars_request)
 
-    def is_full_specified_request(self, mars_request: dict):
+    def is_full_specified_request(self, mars_request: Request):
         # axes = self.gj.axes(mars_request)
         #
         # if(len(axes) != len(mars_request)):
@@ -87,11 +88,14 @@ class GribJumpRequestMerger:
         #
         # return True
 
-        if len(mars_request) < 11:
+        full_request = mars_request.full_request()
+
+        if len(full_request.keys) < 11:
             return False
 
-        for key in mars_request.keys():
-            if isinstance(key, list) and len(key) != 1:
+        for key in full_request.keys.keys():
+            values =  full_request.keys[key]
+            if isinstance(values, list) and len(values) != 1:
                 return False
 
         return True

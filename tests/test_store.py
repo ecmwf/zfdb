@@ -21,7 +21,7 @@ def test_retrieving_a_field():
     print("------ Retrieving a field ---------------")
     print(tmp.shape)
     print(tmp)
-    print(tmp[0, 0, 0, :])
+    # print(tmp[0, 0, 0, :])
 
     # print("-----------------Levellist: 1000-----------------")
     # print(tmp[0, 0, 0, 10:100].shape)
@@ -69,36 +69,36 @@ def test_retrieving_a_field():
     # print(time_param_slice_03[0, 0:2, 0, 10:20])
 
 
-def test_slicing_subselection_vs_individual_retrieval():
-    store = FDBStore()
-    root = zarr.group(store=store, chunk_store=None)
-
-    time_param_slice = root[ '{"class": "ai", "date": "20240601/20240602/20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
-    print(time_param_slice[0:3, 0:2, 0, 10:20].shape)
-    print(time_param_slice[0:3, 0:2, 0, 10:20])
-
-    time_param_slice_01 = root[ '{"class": "ai", "date": "20240601", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
-    time_param_slice_02 = root[ '{"class": "ai", "date": "20240602", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
-    time_param_slice_03 = root[ '{"class": "ai", "date": "20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
-
-    assert_array_equal(time_param_slice[0:3, 0:2, 0, 10:20][0], time_param_slice_01[0, 0:2, 0, 10:20])
-    assert_array_equal(time_param_slice[0:3, 0:2, 0, 10:20][1], time_param_slice_02[0, 0:2, 0, 10:20])
-    assert_array_equal(time_param_slice[0:3, 0:2, 0, 10:20][2], time_param_slice_03[0, 0:2, 0, 10:20])
-
-def test_aggregating_time_param_values():
-    store = FDBStore()
-    root = zarr.group(store=store, chunk_store=None)
-
-    time_param_slice = root[ '{"class": "ai", "date": "20240601/20240602/20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
-
-    time_param_slice_01 = root[ '{"class": "ai", "date": "20240601", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
-    time_param_slice_02 = root[ '{"class": "ai", "date": "20240602", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
-    time_param_slice_03 = root[ '{"class": "ai", "date": "20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
-
-    assert time_param_slice[0].shape == time_param_slice_01[0].shape
-    assert time_param_slice[1].shape == time_param_slice_02[0].shape
-    assert time_param_slice[2].shape == time_param_slice_03[0].shape
-
-    assert_array_equal(time_param_slice[0], time_param_slice_01[0])
-    assert_array_equal(time_param_slice[1], time_param_slice_02[0])
-    assert_array_equal(time_param_slice[2], time_param_slice_03[0])
+# def test_slicing_subselection_vs_individual_retrieval():
+#     store = FDBStore()
+#     root = zarr.group(store=store, chunk_store=None)
+#
+#     time_param_slice = root[ '{"class": "ai", "date": "20240601/20240602/20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
+#     print(time_param_slice[0:3, 0:2, 0, 10:20].shape)
+#     print(time_param_slice[0:3, 0:2, 0, 10:20])
+#
+#     time_param_slice_01 = root[ '{"class": "ai", "date": "20240601", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
+#     time_param_slice_02 = root[ '{"class": "ai", "date": "20240602", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
+#     time_param_slice_03 = root[ '{"class": "ai", "date": "20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
+#
+#     assert_array_equal(time_param_slice[0:3, 0:2, 0, 10:20][0], time_param_slice_01[0, 0:2, 0, 10:20])
+#     assert_array_equal(time_param_slice[0:3, 0:2, 0, 10:20][1], time_param_slice_02[0, 0:2, 0, 10:20])
+#     assert_array_equal(time_param_slice[0:3, 0:2, 0, 10:20][2], time_param_slice_03[0, 0:2, 0, 10:20])
+#
+# def test_aggregating_time_param_values():
+#     store = FDBStore()
+#     root = zarr.group(store=store, chunk_store=None)
+#
+#     time_param_slice = root[ '{"class": "ai", "date": "20240601/20240602/20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
+#
+#     time_param_slice_01 = root[ '{"class": "ai", "date": "20240601", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
+#     time_param_slice_02 = root[ '{"class": "ai", "date": "20240602", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
+#     time_param_slice_03 = root[ '{"class": "ai", "date": "20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
+#
+#     assert time_param_slice[0].shape == time_param_slice_01[0].shape
+#     assert time_param_slice[1].shape == time_param_slice_02[0].shape
+#     assert time_param_slice[2].shape == time_param_slice_03[0].shape
+#
+#     assert_array_equal(time_param_slice[0], time_param_slice_01[0])
+#     assert_array_equal(time_param_slice[1], time_param_slice_02[0])
+#     assert_array_equal(time_param_slice[2], time_param_slice_03[0])

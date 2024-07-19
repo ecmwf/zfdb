@@ -14,6 +14,21 @@ class ZarrKeyMatcher:
         return json.loads(key_without_chunking)
 
     @staticmethod
+    def extract_chunking(key: str) -> list[str] | None:
+        """
+        Strips chunking information from a key and returns
+        the key as a dictionary
+        """
+        chunking_str =  r'[^.{/][\d\.+]+'
+        result_list = re.findall(chunking_str, key)
+
+        if len(result_list) > 0:
+            return result_list[0]
+        else:
+            return None
+
+
+    @staticmethod
     def strip_chunking_remove_group_hierarchy(key: str) -> dict[str, str]:
         """
         Strips chunking information from a key and returns
@@ -42,7 +57,8 @@ class ZarrKeyMatcher:
             for new_key in d.keys():
                 if new_key in result.keys():
                     # TODO:(TKR) This is only working up to commutative params...
-                    if not d[new_key] in result[new_key]:
+                    # TODO(TKR) Come up with a nice solution for subset testing
+                    if not set(d[new_key]).issubset(result[new_key]):
                         # In case of disambiguity 
                         return None
 
@@ -86,7 +102,7 @@ class ZarrKeyMatcher:
         return json.loads(key)
 
     @staticmethod
-    def strip_metadata_remove_group_hiearchy(_key: str) -> dict[str, str]:
+    def strip_metadata_remove_group_hierarchy(_key: str) -> dict[str, str]:
         """
         Strips metadata information from a key and returns
         the key as a dictionary

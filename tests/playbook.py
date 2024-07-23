@@ -29,36 +29,46 @@ def test_initialization():
     tmp = subselection_group[ Request({"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": "0"}) ]
 
     print("------ General accessability test ---------------")
-    print(tmp.shape)
-    print(tmp)
+    # print(ai_group.shape)
+    # print(ai_group)
+    # print(ai_group.info)
+    # print(subselection_group.shape)
+    # print(subselection_group)
+    # print(subselection_group.info)
+    print(ai_date_param_group.shape)
+    print(ai_date_param_group)
+    print(ai_date_param_group.info)
+    # print(tmp.shape)
+    # print(tmp)
+    # print(tmp.info)
     # print(subselection_group.tree())
     # print(subselection_group.info)
     # print(ai_date_param_group)
     # print(ai_date_param_group.tree())
     # print(ai_date_param_group.info)
-    print("\n")
-    print("------ Retrieving a field ---------------")
-    print(tmp[0, 0, 0, :])
-
-    print("-----------------Levellist: 1000-----------------")
-    print("**************** Subsection of 20240601/129/1000 - indices 10 to 20 **********")
-    print(tmp[0, 0, 0, 10:20].shape)
-    print(tmp[0, 0, 0, 10:20])
-    print("\n")
-
-    print("------------Levellist: 850-----------------")
-    print("**************** Subsection of 20240601/129/850 - indices 10 to 20 **********")
-    tmp_850 = root[ '{"class": "ai", "date": "20240601", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
-    print(tmp_850[0, 0, 0, 10:20].shape)
-    print(tmp_850[0, 0, 0, 10:20])
-    print("\n")
-
-    print("-----------------Timeslice: -----------------")
-    print("**************** Subsection of 20240601/20240602/20240603/129/850 - indices 10 to 20 **********")
-    tmp_time_slice = root[ '{"class": "ai", "date": "20240601/20240602/20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
-    print("Shape of whole request:", tmp_time_slice[0:3, 0, 0, :].shape)
-    print(tmp_time_slice[0:3, 0, 0, 10:20])
-
+    # print("\n")
+    # print("------ Retrieving a field ---------------")
+    # print(tmp[0, 0, 0, :])
+    #
+    # print("-----------------Levellist: 1000-----------------")
+    # print("**************** Subsection of 20240601/129/1000 - indices 10 to 20 **********")
+    # print(tmp[0, 0, 0, 10:20].shape)
+    # print(tmp[0, 0, 0, 10:20])
+    # print("\n")
+    #
+    # print("------------Levellist: 850-----------------")
+    # print("**************** Subsection of 20240601/129/850 - indices 10 to 20 **********")
+    # tmp_850 = root[ '{"class": "ai", "date": "20240601", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
+    # print(tmp_850[0, 0, 0, 10:20].shape)
+    # print(tmp_850[0, 0, 0, 10:20])
+    # print("\n")
+    #
+    # print("-----------------Timeslice: -----------------")
+    # print("**************** Subsection of 20240601/20240602/20240603/129/850 - indices 10 to 20 **********")
+    # tmp_time_slice = root[ '{"class": "ai", "date": "20240601/20240602/20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
+    # print("Shape of whole request:", tmp_time_slice[0:3, 0, 0, :].shape)
+    # print(tmp_time_slice[0:3, 0, 0, 10:20])
+    #
     # print("-----------------Subsection Individual: -----------------")
     # tmp_850_2 = root[ '{"class": "ai", "date": "20240602", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
     # tmp_850_3 = root[ '{"class": "ai", "date": "20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]

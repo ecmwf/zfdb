@@ -6,6 +6,26 @@ from copy import deepcopy
 
 
 class Request:
+    """
+    Class for internally representing a mars request. There is some logic to it:
+    In Zarr directories are groups and individual files can be arrays. To
+    cope with this concept, and make virtual groups in FDB possible, there is
+    can be sets of groups, separated by '/', which will be interpreted as a group
+    hierarchy. This parts becomes the prefix of a given request. Keys of a request
+    can be missing keys, which are needed to fully specify a request. The postfix
+    can have multiple Zarr-specific values.
+
+    ---------------------------------------
+    Example:
+
+        {"key1": "value1"}/{"key2": "value2"}/{"key3: "value3"...}/.zarray
+    ------------- prefix --------------------|------ keys --------| postfix
+
+    There are several method for conversion to internal dictionaries with lists
+    of values or even dicts which are in the original format of the FDB requests.
+
+    IMPORTANT: Use the @RequstMapper class to create a new Request
+    """
 
     def __init__(self, keys: dict[str, list[str]], *, prefix : list[Self] | None = None, postfix: str | None = None) -> None:
         self.keys = keys
@@ -20,13 +40,24 @@ class Request:
 
         return cls(keys=keys, prefix=prefix, postfix=postfix)
 
-    def remove_group_hierachy(self):
+    def remove_group_hierachy(self) -> Self:
+        """
+        Removes the prefix/group hierarchy information from a request. This is an __immutable__ operation
+        """
         return Request(prefix=None, keys=deepcopy(self.keys), postfix=deepcopy(self.postfix))
 
-    def remove_postfix(self):
+    def remove_postfix(self) -> Self:
+        """
+        Removes the postfix from a request. This is an __immutable__ operation
+        """
         return Request(prefix=deepcopy(self.prefix), keys=deepcopy(self.keys), postfix=None)
 
     def build_mars_request(self) -> dict[str, list[str]]:
+        """
+        Creates a mars request (dict with mars keys), in which
+        each key can has a list of values. This is a processed version of
+        a span in the actual mars language. Each span is converted into a list.
+        """
         if self.prefix is None:
             return self.keys
 
@@ -39,7 +70,27 @@ class Request:
 
         return resulting_dict
 
+    def build_mars_keys_span(self) -> dict[str, str]:
+        """
+        Creates a mars request (dict with mars keys), in which each
+        key can has a single value and in case of a span the values are separated
+        by '/'.
+        """
+        raw_mars_request = self.build_mars_request()
+        
+        result = {}
+
+        for key in raw_mars_request:
+            result[key] = "/".join(raw_mars_request[key])
+
+        return result
+
+
     def __str__(self) -> str:
+        """
+        String representation for the request. The prefix will be '/' separated.
+        The keys itself are in a valid Json representation. Postfix is a string.
+        """
         result = ""
 
         if self.prefix is not None and len(self.prefix) != 0:
@@ -71,11 +122,19 @@ class RequestMapper:
 
     @staticmethod
     def map_from_dict(dic: dict[str, str]):
+        """
+        Creates a Request from a given dict in raw_format via conversion to
+        Json and calling the create method on its string representation
+        """
         return RequestMapper.map_from_str(json.dumps(dic))
-
 
     @staticmethod
     def map_from_str(str_repr: str):
+
+        ## Root group is empty string
+        if str_repr == "":
+            return Request(keys={})
+
 
         chunking_str =  r"({[^}]+\})+"
         occurrences = [x for x in re.finditer(chunking_str, str_repr)]

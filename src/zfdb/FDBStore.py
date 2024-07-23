@@ -111,9 +111,9 @@ class FDBStore(Store):
     def __delitem__(self, key):
         raise NotImplementedError("This method is not implemented")
 
-    def keylist(self):
+    def keylist(self) -> list[Request]:
         listIterator = self.fdb.list(keys=True)
-        return [it for it in listIterator]
+        return [RequestMapper.map_from_dict(it["keys"]) for it in listIterator]
 
     def __iter__(self):
         yield from self.keylist()
@@ -134,12 +134,34 @@ class FDBStore(Store):
         # for key in self.keys():
         #     del self[key]
 
+    @staticmethod
+    def _filter_group(raw_mars_request: dict[str, list[str]], group_request: dict[str, list[str]]):
+        for key in group_request.keys():
+            if key in raw_mars_request:
+                for value in group_request[key]:
+                    if value in raw_mars_request[key]:
+                        continue
+                    else:
+                        return False
+        
+        return True
+
     def listdir(self, path: str = "") -> List[str]:
         # path = normalize_storage_path(path)
         # return _listdir_from_keys(self, path)
         listIterator = self.keylist()
+        raw_group_request = RequestMapper.map_from_str(path).build_mars_request()
 
-        return [json.dumps(it["keys"]) for it in listIterator]
+        result = []
+
+        for it in listIterator:
+            raw_mars_request = it.build_mars_request()
+
+            if FDBStore._filter_group(raw_mars_request, raw_group_request):
+
+                result.append(json.dumps(it.build_mars_keys_span()))
+        
+        return result
 
     def rmdir(self, path: str = "") -> None:
         raise NotImplementedError("This method is not implemented")

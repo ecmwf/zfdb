@@ -1,8 +1,12 @@
-from zfdb import FDBStore
-from zfdb.requests.Request import Request
+from zarr.hierarchy import Group
+
+from zfdb.business.FDBStore import FDBStore
+from zfdb.business.Request import Request, RequestMapper
 
 import zarr
 import numpy as np
+
+from zfdb.gribjump.request import GribJumpRequestMapper
 
 class TestAccess:
 
@@ -16,12 +20,12 @@ class TestAccess:
         store = FDBStore()
         root = zarr.group(store=store, chunk_store=None)
 
-        ai_group = root[Request({"class": "ai"})]
-        ai_date_group = ai_group[Request({"date": "20240601"})]
+        ai_group = root[GribJumpRequestMapper.map_from_dict({"class": "ai"})]
+        ai_date_group = ai_group[GribJumpRequestMapper.map_from_dict({"date": "20240601"})]
 
-        ai_date_param_group = ai_date_group[Request({"param": "129"})]
-        subselection_group = ai_date_param_group[Request({"time": "0000", "levelist": "1000"})]
-        tmp = subselection_group[ Request({"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": "0"}) ]
+        ai_date_param_group = ai_date_group[GribJumpRequestMapper.map_from_dict({"param": "129"})]
+        subselection_group = ai_date_param_group[GribJumpRequestMapper.map_from_dict({"time": "0000", "levelist": "1000"})]
+        tmp = subselection_group[ GribJumpRequestMapper.map_from_dict({"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": "0"}) ]
 
         print(tmp.shape)
 
@@ -42,28 +46,14 @@ class TestAccess:
         store = FDBStore()
         root = zarr.group(store=store, chunk_store=None)
 
-        ai_group = root[Request({"class": "ai"})]
-        ai_date_group = ai_group[Request({"date": "20240601"})]
+        ai_group = root[GribJumpRequestMapper.map_from_dict({"class": "ai"})]
+        ai_date_group = ai_group[GribJumpRequestMapper.map_from_dict({"date": "20240601"})]
 
-        ai_date_param_group = ai_date_group[Request({"param": "129"})]
-        subselection_group = ai_date_param_group[Request({"time": "0000", "levelist": "1000"})]
-        tmp = subselection_group[ Request({"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": "0"}) ]
+        ai_date_param_group = ai_date_group[GribJumpRequestMapper.map_from_dict({"param": "129"})]
+        subselection_group = ai_date_param_group[GribJumpRequestMapper.map_from_dict({"time": "0000", "levelist": "1000"})]
+        tmp = subselection_group[ GribJumpRequestMapper.map_from_dict({"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": "0"}) ]
 
         print(tmp[0, 0, 0, :])
-
-    def test_slicing_field(self):
-        store = FDBStore()
-        root = zarr.group(store=store, chunk_store=None)
-
-        tmp = root[ '{"class": "ai", "date": "20240601", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "1000", "param": "129", "step": "0"}' ]
-        tmp_850 = root[ '{"class": "ai", "date": "20240601", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129", "step": "0"}' ]
-
-        print(tmp[0, 0, 0, 10:20].shape)
-        print(tmp[0, 0, 0, 10:20])
-
-        print(tmp_850[0, 0, 0, 10:20].shape)
-        print(tmp_850[0, 0, 0, 10:20])
-
 
     def test_time_slicing(self):
         store = FDBStore()

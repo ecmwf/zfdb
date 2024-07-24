@@ -7,8 +7,8 @@ from tests.utils.Utils import TestUtils
 from random import randint
 
 from tests.utils.Utils import TestUtils
-from zfdb.ZarrKeyMatcher import ZarrKeyMatcher
-from zfdb.requests.Request import Request
+from zfdb.business.ZarrKeyMatcher import ZarrKeyMatcher
+from zfdb.business.Request import Request
 
 
 class TestZarrMatcher:

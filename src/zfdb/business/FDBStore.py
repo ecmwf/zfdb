@@ -6,10 +6,11 @@ from zarr import hierarchy
 from zarr.storage import Store
 from zarr.types import DIMENSION_SEPARATOR
 
-from zfdb.GribJumpRequestMerger import GribJumpRequestMerger
-from zfdb.requests.Request import Request, RequestMapper 
+from zfdb.business.GribJumpRequestMerger import GribJumpRequestMerger
+from zfdb.business.Request import Request, RequestMapper 
 
-from zfdb.ZarrKeyMatcher import ZarrKeyMatcher
+from zfdb.business.ZarrKeyMatcher import ZarrKeyMatcher
+from zfdb.business.ZarrMetadataBuilder import ZarrMetadataBuilder
 
 
 class FDBStore(Store):
@@ -64,14 +65,14 @@ class FDBStore(Store):
             # TODO: Combine prefix to a under-specified mars request and check
             # whether it's in the axis object.
 
-            if self.gribjump_merger.is_full_specified_request(request):
+            if request.is_fully_specified():
                 return False
             else:
                 return True
             # return not self.gribjump_merger.is_full_specified_request(mars_request):
 
         if ZarrKeyMatcher.is_array(request):
-            if self.gribjump_merger.is_full_specified_request(request):
+            if request.is_fully_specified():
                 return True
             else:
                 return False
@@ -95,15 +96,21 @@ class FDBStore(Store):
 
         request: Request = RequestMapper.map_from_str(key)
 
-        if ZarrKeyMatcher.is_array(request):
-            mars_request = request.build_mars_request()
-            return self.gribjump_merger.zarr_metadata(mars_request)
-
         if ZarrKeyMatcher.is_group(request):
             return '{"zarr_format": 2}'
 
+        if not request.is_fully_specified():
+            raise KeyError("No array found")
+
+        if ZarrKeyMatcher.is_array(request):
+            return ZarrMetadataBuilder.default(request.build_mars_request())
+    
+        if ZarrKeyMatcher.has_chunking(request):
+            mars_request = request.build_mars_request()
+            return self.gribjump_merger.request(mars_request)
+
         mars_request = request.build_mars_request()
-        return self.gribjump_merger.request(mars_request)
+        return self.gribjump_merger.zarr_metadata(mars_request)
 
     def __setitem__(self, key, value):
         raise NotImplementedError("This method is not implemented")
@@ -158,7 +165,6 @@ class FDBStore(Store):
             raw_mars_request = it.build_mars_request()
 
             if FDBStore._filter_group(raw_mars_request, raw_group_request):
-
                 result.append(json.dumps(it.build_mars_keys_span()))
         
         return result

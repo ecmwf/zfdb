@@ -3,8 +3,8 @@ import numpy as np
 
 import copy
 
-from zfdb.ZarrMetadataBuilder import ZarrMetadataBuilder
-from zfdb.requests.Request import Request 
+from zfdb.business.ZarrMetadataBuilder import ZarrMetadataBuilder
+from zfdb.business.Request import Request 
 
 class GribJumpRequestMapper:
 
@@ -83,44 +83,44 @@ class GribJumpRequestMerger:
     def axes(self, mars_request: dict):
         return self.gj.axes(mars_request)
 
-    def is_full_specified_request(self, mars_request: Request):
-        # axes = self.gj.axes(mars_request)
-        #
-        # if(len(axes) != len(mars_request)):
-        #     return False
-        #
-        # # Flatten 1D keys
-        # for key in mars_request.keys():
-        #     if(len(axes[key]) == 1):
-        #         axes[key] = axes[key][0]
-        #
-        # for key in axes.keys():
-        #     # Levellist bug? Returing all keys although only one is specfied
-        #     if key in ["levelist", "param", "step" ]:
-        #         continue
-        #     
-        #     # Axes consists out of a range for a key, so the request wasn't
-        #     # fully specified
-        #     if axes[key] != mars_request[key]:
-        #         return False
-        #
-        # return True
-
-        full_request = mars_request.build_mars_request()
-        mars_keys = full_request.keys()
-
-        if len(mars_keys) < 11:
-            return False
-
-        for key in mars_keys:
-            if key in ["date", "param", "levelist"]:
-                continue
-            values =  full_request[key]
-            if isinstance(values, list) and len(values) != 1:
-                return False
-
-        return True
-
+    # def is_full_specified_request(self, mars_request: Request):
+    #     # axes = self.gj.axes(mars_request)
+    #     #
+    #     # if(len(axes) != len(mars_request)):
+    #     #     return False
+    #     #
+    #     # # Flatten 1D keys
+    #     # for key in mars_request.keys():
+    #     #     if(len(axes[key]) == 1):
+    #     #         axes[key] = axes[key][0]
+    #     #
+    #     # for key in axes.keys():
+    #     #     # Levellist bug? Returing all keys although only one is specfied
+    #     #     if key in ["levelist", "param", "step" ]:
+    #     #         continue
+    #     #     
+    #     #     # Axes consists out of a range for a key, so the request wasn't
+    #     #     # fully specified
+    #     #     if axes[key] != mars_request[key]:
+    #     #         return False
+    #     #
+    #     # return True
+    #
+    #     full_request = mars_request.build_mars_request()
+    #     mars_keys = full_request.keys()
+    #
+    #     if len(mars_keys) < 11:
+    #         return False
+    #
+    #     for key in mars_keys:
+    #         if key in ["date", "param", "levelist"]:
+    #             continue
+    #         values =  full_request[key]
+    #         if isinstance(values, list) and len(values) != 1:
+    #             return False
+    #
+    #     return True
+    #
 
     def existing(self, mars_request: dict[str, list[str]]):
         pygribjump_request = GribJumpRequestMapper.to_grib_jump(mars_request)

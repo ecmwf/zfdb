@@ -1,7 +1,7 @@
 import zarr
 
 from zfdb import *
-from zfdb.FDBStore import FDBStore
+from zfdb.business.FDBStore import FDBStore
 
 from numpy.testing import assert_array_equal
  

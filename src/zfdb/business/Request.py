@@ -4,6 +4,10 @@ from typing import Self
 
 from copy import deepcopy
 
+class MarsRequest:
+
+    def __init__(self, keys: str) -> None:
+        self.keys = keys
 
 class Request:
     """
@@ -28,17 +32,14 @@ class Request:
     """
 
     def __init__(self, keys: dict[str, list[str]], *, prefix : list[Self] | None = None, postfix: str | None = None) -> None:
+
+        for key in keys.keys():
+            if not isinstance(keys[key], list):
+                raise RuntimeError(f"Request needs to be build from key-value-pairs, where value is an instance of list. Found: {keys[key]}")
+
         self.keys = keys
         self.prefix = prefix
         self.postfix = postfix
-
-    @classmethod
-    def from_kw_args(cls, **kwargs) -> Self:
-        keys = kwargs
-        prefix = None
-        postfix = None
-
-        return cls(keys=keys, prefix=prefix, postfix=postfix)
 
     def remove_group_hierachy(self) -> Self:
         """
@@ -81,7 +82,10 @@ class Request:
         result = {}
 
         for key in raw_mars_request:
-            result[key] = "/".join(raw_mars_request[key])
+            if isinstance(raw_mars_request[key], list):
+                result[key] = "/".join(raw_mars_request[key])
+            else:
+                result[key] = raw_mars_request[key]
 
         return result
 
@@ -106,19 +110,45 @@ class Request:
 
         return result
 
+    def is_fully_specified(self):
+        full_request = self.build_mars_request()
+        mars_keys = full_request.keys()
+
+        if len(mars_keys) < 11:
+            return False
+
+        for key in mars_keys:
+            if key in ["date", "param", "levelist"]:
+                continue
+            values =  full_request[key]
+            if isinstance(values, list) and len(values) != 1:
+                return False
+
+        return True
+
 
 class RequestMapper:
 
     @staticmethod
-    def __map_ranges(dic: dict[str, str]) -> dict[str, list[str]]:
+    def __sanitize(dic: dict[str, str]) -> dict[str, list[str]]:
 
         result = {}
 
         for key in dic.keys():
             values = dic[key]
-            result[key] = values.split("/")
+            if isinstance(values, list):
+                result[key] = values
+            elif isinstance(values, str):
+                if "/" in values:
+                    result[key] = values.split("/")
+                else:
+                    result[key] = [values]
+            else:
+                raise RuntimeError(f"Can't sanitize {dic}")
             
         return result
+
+
 
     @staticmethod
     def map_from_dict(dic: dict[str, str]):
@@ -126,7 +156,8 @@ class RequestMapper:
         Creates a Request from a given dict in raw_format via conversion to
         Json and calling the create method on its string representation
         """
-        return RequestMapper.map_from_str(json.dumps(dic))
+        dict_sanitized = RequestMapper.__sanitize(dic)
+        return RequestMapper.map_from_str(json.dumps(dict_sanitized))
 
     @staticmethod
     def map_from_str(str_repr: str):
@@ -141,7 +172,7 @@ class RequestMapper:
 
         # last occurence is the actual request within a group
         dicts =  [json.loads(occ[0]) for occ in occurrences]
-        dicts_sanitized =  [RequestMapper.__map_ranges(x) for x in dicts]
+        dict_sanitized = [RequestMapper.__sanitize(dic) for dic in dicts]
 
         # mars_requst = json.loads(occurrences[-1][0])
         # mars_requst = RequestMapper.__make_values_set(mars_requst)
@@ -163,7 +194,7 @@ class RequestMapper:
         # prefix = RequestMapper.__make_values_set(prefix)
         #
         # Make the prefix a Request
-        prefix = [Request(keys=x) for x in dicts_sanitized[:-1]]
+        prefix = [Request(keys=x) for x in dict_sanitized[:-1]]
         if len(prefix) == 0:
             prefix = None
 
@@ -177,10 +208,10 @@ class RequestMapper:
                 postfix = possible_postfixes[-1]
 
 
-        from zfdb.ZarrKeyMatcher import ZarrKeyMatcher
+        from zfdb.business.ZarrKeyMatcher import ZarrKeyMatcher
         chunking_info = ZarrKeyMatcher.extract_chunking(str_repr)
 
         if chunking_info is not None:
             postfix = chunking_info
 
-        return Request(keys=dicts_sanitized[-1], prefix=prefix, postfix=postfix)
+        return Request(keys=dict_sanitized[-1], prefix=prefix, postfix=postfix)

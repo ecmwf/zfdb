@@ -1,5 +1,4 @@
-from zfdb.requests.Request import RequestMapper, Request
-
+from zfdb.business.Request import Request
 
 class TestUtils:
     @staticmethod

@@ -2,12 +2,20 @@ import json
 
 import pytest
 from tests.utils.Utils import TestUtils
-from zfdb.requests.Request import Request, RequestMapper
+from zfdb.business.Request import Request, RequestMapper
 
 
 class TestRequest:
-    def test_default_initialization(self):
+
+    def test_default_initialization_non_list_values(self):
         keys = {"some_key": "some_value"}
+
+        with pytest.raises(RuntimeError) as runtimeError:
+            Request(keys=keys)
+
+
+    def test_default_initialization(self):
+        keys = {"some_key": ["some_value"]}
         prefix = [Request(keys=keys)]
         postfix = "prefix"
 
@@ -16,15 +24,6 @@ class TestRequest:
         assert request.keys == keys
         assert request.prefix == prefix
         assert request.postfix == postfix
-
-    def test_kw_args_initialization(self):
-        keys = {"some_key": "some_value"}
-
-        request = Request.from_kw_args(**keys)
-
-        assert request.keys == keys
-        assert request.prefix is None
-        assert request.postfix is None
 
     def test_remove_group_hierachy(self):
         request = TestUtils.build_example_zarray_with_prefix_and_postfix()

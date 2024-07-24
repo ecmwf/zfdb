@@ -32,7 +32,8 @@ class ZarrMetadataBuilder:
         self._order = None
         self._filters = None
 
-    def default(self, mars_request):
+    @staticmethod
+    def default(mars_request):
         """
         This is for now returning hard-coded values for the field sizes
         as well as setting up things to work with the gribjump axis object

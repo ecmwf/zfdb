@@ -14,7 +14,7 @@ from zfdb.business.Request import Request
 class TestZarrMatcher:
     def test_chunking_stripping(self):
         # Given
-        keys = {"key": ["value"]}
+        keys = {"key": ["value1/value2"]}
 
         postfix = ".".join([str(randint(0, 10000)) for _ in range(randint(0, 100))])
 

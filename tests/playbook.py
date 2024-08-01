@@ -3,7 +3,6 @@ import zarr
 from zfdb import *
 from zfdb.FDBStore import FDBStore
 
-from zfdb.requests.Request import Request
 
 def test_initialization():
     store = FDBStore()
@@ -19,14 +18,14 @@ def test_initialization():
 
     # ranges are tricky to implement. TODO: HOW TO MATCH KEYS?
     # tmp = root[ '{"class": "ai", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "1000", "param": "129", "step": "0"}' ]
-    ai_group = root[Request({"class": "ai"})]
-    ai_date_group = ai_group[Request({"date": "20240601"})]
+    ai_group = root[{"class": "ai"}]
+    ai_date_group = ai_group[{"date": "20240601"}]
 
     # tmp = ai_date_group[ '{"domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "1000", "param": "129", "step": "0"}' ]
     # tmp = ai_date_group[ '{"domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "1000", "param": "129", "step": "0"}' ]
-    ai_date_param_group = ai_date_group[Request({"param": "129"})]
-    subselection_group = ai_date_param_group[Request({"time": "0000", "levelist": "1000"})]
-    tmp = subselection_group[ Request({"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": "0"}) ]
+    ai_date_param_group = ai_date_group[{"param": "129"}]
+    subselection_group = ai_date_param_group[{"time": "0000", "levelist": "1000"}]
+    tmp = subselection_group[ {"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": "0"} ]
 
     print("------ General accessability test ---------------")
     # print(ai_group.shape)

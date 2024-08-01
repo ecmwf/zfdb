@@ -62,7 +62,7 @@ class TestRequestMapper:
         str_request += json.dumps(raw_request)
         str_request += "/postfix"
 
-        request = RequestMapper.map_from_str(str_request)
+        request = RequestMapper.map_from_raw_input_dict(str_request)
 
         token = str(request).split("/")
 
@@ -97,7 +97,7 @@ class TestRequestMapper:
         str_request += json.dumps(raw_request)
         str_request += "/.zarray"
 
-        request = RequestMapper.map_from_str(str_request)
+        request = RequestMapper.map_from_raw_input_dict(str_request)
 
 
         assert len(request.prefix) == len(raw_prefix_list)
@@ -193,7 +193,7 @@ class TestRequestMapper:
         str_request += zarr_postfix
 
         # When
-        request = RequestMapper.map_from_str(str_request)
+        request = RequestMapper.map_from_raw_input_dict(str_request)
 
         # Then
         assert len(request.keys) == len(raw_request)
@@ -205,3 +205,40 @@ class TestRequestMapper:
 
         assert request.prefix is None
         assert request.postfix == zarr_postfix
+
+
+    chunking_info = ["0", "1", "0.0", "0.1", "1.1", "1.0", "0.0.0.0"]
+
+    @pytest.mark.parametrize("chunking_info", chunking_info)
+    def test_initialization_from_dict_zarr_chunking(self, chunking_info):
+        # Given
+        raw_request = {
+            "class": "ai/od",
+            "domain": "g",
+            "expver": "0001",
+            "stream": "oper",
+            "time": "0000",
+            "levtype": "pl",
+            "type": "fc",
+            "levelist": "1000",
+            "param": "129",
+            "step": "0",
+        }
+
+        str_request = ""
+        str_request += json.dumps(raw_request) + "/"
+        str_request += chunking_info
+
+        # When
+        request = RequestMapper.map_from_raw_input_dict(str_request)
+
+        # Then
+        assert len(request.keys) == len(raw_request)
+
+        for key in raw_request:
+            values = request.keys[key]
+            assert len(values) == len(raw_request[key].split("/"))
+            assert raw_request[key].split("/") == values
+
+        assert request.prefix is None
+        assert request.postfix == chunking_info

@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+      {
+          "type": "python",
+          "request": "launch",
+          "name": "Launch",
+          "cwd": "${workspaceFolder}",
+          "program": "${input:myPrompt}",
+          "console": "integratedTerminal",
+          "justMyCode": false,
+      }
+  ],
+  "inputs": [
+      {
+          "id": "myPrompt",
+          "type": "pickString",
+          "description": "Program to run: ",
+          "options": ["tests/playbook.py", "tests/test_store.py"]
+      }
+  ],
+}

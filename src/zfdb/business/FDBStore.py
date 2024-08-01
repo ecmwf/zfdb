@@ -59,7 +59,7 @@ class FDBStore(Store):
         if _key == ".zarray":
             return False
 
-        request:Request = RequestMapper.map_from_str(_key)
+        request:Request = RequestMapper.map_from_raw_input_dict(_key)
         
         if ZarrKeyMatcher.is_group(request):
             # TODO: Combine prefix to a under-specified mars request and check
@@ -89,12 +89,13 @@ class FDBStore(Store):
     def _key(self, key):
         return f"{self._prefix}:{key}"
 
+    # {"class": "ai"}/{"date": "20240601"}/
     def __getitem__(self, key):
         # Faking the zarr 2 file format
         if key == ".zgroup":
             return '{"zarr_format": 2}'
 
-        request: Request = RequestMapper.map_from_str(key)
+        request: Request = RequestMapper.map_from_raw_input_dict(key)
 
         if ZarrKeyMatcher.is_group(request):
             return '{"zarr_format": 2}'
@@ -157,7 +158,7 @@ class FDBStore(Store):
         # path = normalize_storage_path(path)
         # return _listdir_from_keys(self, path)
         listIterator = self.keylist()
-        raw_group_request = RequestMapper.map_from_str(path).build_mars_request()
+        raw_group_request = RequestMapper.map_from_raw_input_dict(path).build_mars_request()
 
         result = []
 

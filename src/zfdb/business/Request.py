@@ -118,7 +118,7 @@ class Request:
             return False
 
         for key in mars_keys:
-            if key in ["date", "param", "levelist"]:
+            if key in ["step", "param", "levelist"]:
                 continue
             values =  full_request[key]
             if isinstance(values, list) and len(values) != 1:
@@ -136,8 +136,10 @@ class RequestMapper:
 
         for key in dic.keys():
             values = dic[key]
+            # If values is a list, convert it to string
             if isinstance(values, list):
-                result[key] = values
+                result[key] = [str(v) for v in values]
+            # If values is a string, split it on / or warp it in a list
             elif isinstance(values, str):
                 if "/" in values:
                     result[key] = values.split("/")
@@ -157,42 +159,28 @@ class RequestMapper:
         Json and calling the create method on its string representation
         """
         dict_sanitized = RequestMapper.__sanitize(dic)
-        return RequestMapper.map_from_str(json.dumps(dict_sanitized))
+        return RequestMapper.map_from_raw_input_dict(json.dumps(dict_sanitized))
 
     @staticmethod
-    def map_from_str(str_repr: str):
+    def map_from_raw_input_dict(str_repr: str) -> Request:
+
+        # Python converting dictionary string to single quotes, but json relying 
+        # on double quotes for serialisation
+        str_repr = str_repr.replace("\'", "\"")
 
         ## Root group is empty string
         if str_repr == "":
             return Request(keys={})
 
 
+        # Find all occurrences of dictionarys within a possible str_repr
         chunking_str =  r"({[^}]+\})+"
         occurrences = [x for x in re.finditer(chunking_str, str_repr)]
 
-        # last occurence is the actual request within a group
+        # last occurrence is the actual request within a 
         dicts =  [json.loads(occ[0]) for occ in occurrences]
         dict_sanitized = [RequestMapper.__sanitize(dic) for dic in dicts]
 
-        # mars_requst = json.loads(occurrences[-1][0])
-        # mars_requst = RequestMapper.__make_values_set(mars_requst)
-        #
-        # # Merge dicts to one mars request for prefixing
-        # prefix = {}
-        #
-        # for d in dicts:
-        #     for new_key in d.keys():
-        #         if new_key in prefix.keys():
-        #             # TODO:(TKR) This is only working up to commutative params...
-        #             if d[new_key] not in prefix[new_key]:
-        #                 # In case of disambiguity 
-        #                 raise RuntimeError("RequestMapper: Disambiguity in mapping groups. Duplicate keys in group definitions.")
-        #
-        #     prefix.update(d)
-        #
-        # # Normalize the dictionary by making all values to sets
-        # prefix = RequestMapper.__make_values_set(prefix)
-        #
         # Make the prefix a Request
         prefix = [Request(keys=x) for x in dict_sanitized[:-1]]
         if len(prefix) == 0:

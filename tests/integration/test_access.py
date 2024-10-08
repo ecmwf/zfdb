@@ -1,12 +1,9 @@
 from zarr.hierarchy import Group
 
 from zfdb.business.FDBStore import FDBStore
-from zfdb.business.Request import Request, RequestMapper
 
 import zarr
 import numpy as np
-
-from zfdb.gribjump.request import GribJumpRequestMapper
 
 class TestAccess:
 
@@ -37,9 +34,9 @@ class TestAccess:
         print(ai_date_param_group.tree())
         print(ai_date_param_group.info)
 
-        assert len(root) == 4992
-        assert len(ai_date_param_group) == 728
-        assert len(subselection_group) == 28
+        assert len(root) == 2123
+        assert len(ai_date_param_group) == 155
+        assert len(subselection_group) == 34
         assert len(tmp) == 1
 
     def test_retrieve_values_from_group_field(self):
@@ -51,9 +48,11 @@ class TestAccess:
 
         ai_date_param_group = ai_date_group[{"param": "129"}]
         subselection_group = ai_date_param_group[{"time": "0000", "levelist": "1000"}]
-        tmp = subselection_group[ {"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": list(range(0, 24, 12))} ]
+        data = subselection_group[ {"domain": "g", "expver": "0001", "stream": "oper", 
+                                 "levtype": "pl", "type": "fc", 
+                                 "step": list(range(0, 24, 12))} ]
 
-        print(tmp[0, 0, 0, :])
+        print(data[0, 0, 0, :])
 
     def test_time_slicing(self):
         store = FDBStore()
@@ -74,4 +73,4 @@ class TestAccess:
 
 if __name__ == "__main__":
     ta = TestAccess()
-    ta.test_simple_group_structure()
+    ta.test_time_slicing()

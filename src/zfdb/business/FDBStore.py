@@ -2,7 +2,6 @@ import json
 from typing import List, Optional
 
 import pyfdb
-from zarr import hierarchy
 from zarr.storage import Store
 from zarr.types import DIMENSION_SEPARATOR
 
@@ -69,7 +68,6 @@ class FDBStore(Store):
                 return False
             else:
                 return True
-            # return not self.gribjump_merger.is_full_specified_request(mars_request):
 
         if ZarrKeyMatcher.is_array(request):
             if request.is_fully_specified():
@@ -82,7 +80,6 @@ class FDBStore(Store):
 
         if ZarrKeyMatcher.has_chunking(request):
             return True
-            # return self.gribjump_merger.request(mars_request)
 
         return False
 
@@ -131,7 +128,6 @@ class FDBStore(Store):
 
     def __getstate__(self):
         raise NotImplementedError("This method is not implemented")
-        # return self._prefix, self._kwargs
 
     def __setstate__(self, state):
         prefix, kwargs = state
@@ -139,8 +135,6 @@ class FDBStore(Store):
 
     def clear(self):
         raise NotImplementedError("This method is not implemented")
-        # for key in self.keys():
-        #     del self[key]
 
     @staticmethod
     def _filter_group(raw_mars_request: dict[str, list[str]], group_request: dict[str, list[str]]):
@@ -155,8 +149,6 @@ class FDBStore(Store):
         return True
 
     def listdir(self, path: str = "") -> List[str]:
-        # path = normalize_storage_path(path)
-        # return _listdir_from_keys(self, path)
         listIterator = self.keylist()
         raw_group_request = RequestMapper.map_from_raw_input_dict(path).build_mars_request()
 
@@ -172,9 +164,3 @@ class FDBStore(Store):
 
     def rmdir(self, path: str = "") -> None:
         raise NotImplementedError("This method is not implemented")
-        # if not self.is_erasable():
-        #     raise NotImplementedError(
-        #         f'{type(self)} is not erasable, cannot call "rmdir"'
-        #     )  # pragma: no cover
-        # path = normalize_storage_path(path)
-        # _rmdir_from_keys(self, path)

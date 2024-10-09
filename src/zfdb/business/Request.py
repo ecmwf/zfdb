@@ -118,7 +118,7 @@ class Request:
             return False
 
         for key in mars_keys:
-            if key in ["step", "param", "levelist"]:
+            if key in ["date","step", "param", "levelist"]:
                 continue
             values =  full_request[key]
             if isinstance(values, list) and len(values) != 1:

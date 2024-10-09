@@ -19,8 +19,8 @@ class TestAccess:
 
         ai_date_param_group = root[{"class": "ai"}][{"date": "20240601"}][{"param": "129"}]
         subselection_group = ai_date_param_group[{"time": "0000", "levelist": "1000"}]
+        tmp = subselection_group[ {"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": "0"} ]
         # tmp = subselection_group[ {"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": "0"} ]
-        tmp = subselection_group[ {"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": list(range(0, 120, 12))} ]
         # tmp = subselection_group[ {"domain": "g", "expver": "0001", "stream": "enfo", "levtype": "pl", "type": "pf", "number": list(range(1, 51)), "step": list(range(0, 20))} ]
         # shape = (20, 50, 54200)
 

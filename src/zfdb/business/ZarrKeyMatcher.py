@@ -79,7 +79,7 @@ class ZarrKeyMatcher:
         if key.postfix is None:
             return False
 
-        chunking_str =  r'(?:/)(\d+(\.\d+)*)'
+        chunking_str =  r'(\d+(\.\d+)*)'
         return re.search(chunking_str, key.postfix) is not None
 
     @staticmethod

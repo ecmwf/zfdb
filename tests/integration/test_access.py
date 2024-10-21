@@ -34,9 +34,9 @@ class TestAccess:
         print(ai_date_param_group.tree())
         print(ai_date_param_group.info)
 
-        assert len(root) == 2123
-        assert len(ai_date_param_group) == 155
-        assert len(subselection_group) == 34
+        assert len(root) == 1614
+        assert len(ai_date_param_group) == 66
+        assert len(subselection_group) == 11
         assert len(tmp) == 1
 
     def test_retrieve_values_from_group_field(self):

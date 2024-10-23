@@ -6,13 +6,13 @@ from zarr.storage import Store
 from zarr.types import DIMENSION_SEPARATOR
 
 from zfdb.business.GribJumpRequestMerger import GribJumpRequestMerger
-from zfdb.business.Request import Request, RequestMapper 
+from zfdb.business.Request import Request, RequestMapper
 
 from zfdb.business.ZarrKeyMatcher import ZarrKeyMatcher
 from zfdb.business.ZarrMetadataBuilder import ZarrMetadataBuilder
 
 
-class FDBStore(Store):
+class FDBMapping(Store):
     """Storage class using FDB.
 
     .. note:: This is an experimental feature.
@@ -58,8 +58,8 @@ class FDBStore(Store):
         if _key == ".zarray":
             return False
 
-        request:Request = RequestMapper.map_from_raw_input_dict(_key)
-        
+        request: Request = RequestMapper.map_from_raw_input_dict(_key)
+
         if ZarrKeyMatcher.is_group(request):
             # TODO: Combine prefix to a under-specified mars request and check
             # whether it's in the axis object.
@@ -102,7 +102,7 @@ class FDBStore(Store):
 
         if ZarrKeyMatcher.is_array(request):
             return ZarrMetadataBuilder.default(request.build_mars_request())
-    
+
         if ZarrKeyMatcher.has_chunking(request):
             mars_request = request.build_mars_request()
             return self.gribjump_merger.request(mars_request)
@@ -137,7 +137,9 @@ class FDBStore(Store):
         raise NotImplementedError("This method is not implemented")
 
     @staticmethod
-    def _filter_group(raw_mars_request: dict[str, list[str]], group_request: dict[str, list[str]]):
+    def _filter_group(
+        raw_mars_request: dict[str, list[str]], group_request: dict[str, list[str]]
+    ):
         for key in group_request.keys():
             if key in raw_mars_request:
                 for value in group_request[key]:
@@ -145,21 +147,23 @@ class FDBStore(Store):
                         continue
                     else:
                         return False
-        
+
         return True
 
     def listdir(self, path: str = "") -> List[str]:
         listIterator = self.keylist()
-        raw_group_request = RequestMapper.map_from_raw_input_dict(path).build_mars_request()
+        raw_group_request = RequestMapper.map_from_raw_input_dict(
+            path
+        ).build_mars_request()
 
         result = []
 
         for it in listIterator:
             raw_mars_request = it.build_mars_request()
 
-            if FDBStore._filter_group(raw_mars_request, raw_group_request):
+            if FDBMapping._filter_group(raw_mars_request, raw_group_request):
                 result.append(json.dumps(it.build_mars_keys_span()))
-        
+
         return result
 
     def rmdir(self, path: str = "") -> None:

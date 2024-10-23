@@ -4,10 +4,11 @@ from typing import Self
 
 from copy import deepcopy
 
-class MarsRequest:
 
+class MarsRequest:
     def __init__(self, keys: str) -> None:
         self.keys = keys
+
 
 class Request:
     """
@@ -31,11 +32,18 @@ class Request:
     IMPORTANT: Use the @RequstMapper class to create a new Request
     """
 
-    def __init__(self, keys: dict[str, list[str]], *, prefix : list[Self] | None = None, postfix: str | None = None) -> None:
-
+    def __init__(
+        self,
+        keys: dict[str, list[str]],
+        *,
+        prefix: list[Self] | None = None,
+        postfix: str | None = None,
+    ) -> None:
         for key in keys.keys():
             if not isinstance(keys[key], list):
-                raise RuntimeError(f"Request needs to be build from key-value-pairs, where value is an instance of list. Found: {keys[key]}")
+                raise RuntimeError(
+                    f"Request needs to be build from key-value-pairs, where value is an instance of list. Found: {keys[key]}"
+                )
 
         self.keys = keys
         self.prefix = prefix
@@ -45,13 +53,17 @@ class Request:
         """
         Removes the prefix/group hierarchy information from a request. This is an __immutable__ operation
         """
-        return Request(prefix=None, keys=deepcopy(self.keys), postfix=deepcopy(self.postfix))
+        return Request(
+            prefix=None, keys=deepcopy(self.keys), postfix=deepcopy(self.postfix)
+        )
 
     def remove_postfix(self) -> Self:
         """
         Removes the postfix from a request. This is an __immutable__ operation
         """
-        return Request(prefix=deepcopy(self.prefix), keys=deepcopy(self.keys), postfix=None)
+        return Request(
+            prefix=deepcopy(self.prefix), keys=deepcopy(self.keys), postfix=None
+        )
 
     def build_mars_request(self) -> dict[str, list[str]]:
         """
@@ -78,7 +90,7 @@ class Request:
         by '/'.
         """
         raw_mars_request = self.build_mars_request()
-        
+
         result = {}
 
         for key in raw_mars_request:
@@ -88,7 +100,6 @@ class Request:
                 result[key] = raw_mars_request[key]
 
         return result
-
 
     def __str__(self) -> str:
         """
@@ -118,9 +129,9 @@ class Request:
             return False
 
         for key in mars_keys:
-            if key in ["date","step", "param", "levelist"]:
+            if key in ["date", "step", "param", "levelist"]:
                 continue
-            values =  full_request[key]
+            values = full_request[key]
             if isinstance(values, list) and len(values) != 1:
                 return False
 
@@ -128,10 +139,8 @@ class Request:
 
 
 class RequestMapper:
-
     @staticmethod
     def __sanitize(dic: dict[str, str]) -> dict[str, list[str]]:
-
         result = {}
 
         for key in dic.keys():
@@ -147,10 +156,8 @@ class RequestMapper:
                     result[key] = [values]
             else:
                 raise RuntimeError(f"Can't sanitize {dic}")
-            
+
         return result
-
-
 
     @staticmethod
     def map_from_dict(dic: dict[str, str]):
@@ -163,22 +170,20 @@ class RequestMapper:
 
     @staticmethod
     def map_from_raw_input_dict(str_repr: str) -> Request:
-
-        # Python converting dictionary string to single quotes, but json relying 
+        # Python converting dictionary string to single quotes, but json relying
         # on double quotes for serialisation
-        str_repr = str_repr.replace("\'", "\"")
+        str_repr = str_repr.replace("'", '"')
 
         ## Root group is empty string
         if str_repr == "":
             return Request(keys={})
 
-
         # Find all occurrences of dictionarys within a possible str_repr
-        chunking_str =  r"({[^}]+\})+"
+        chunking_str = r"({[^}]+\})+"
         occurrences = [x for x in re.finditer(chunking_str, str_repr)]
 
-        # last occurrence is the actual request within a 
-        dicts =  [json.loads(occ[0]) for occ in occurrences]
+        # last occurrence is the actual request within a
+        dicts = [json.loads(occ[0]) for occ in occurrences]
         dict_sanitized = [RequestMapper.__sanitize(dic) for dic in dicts]
 
         # Make the prefix a Request
@@ -188,15 +193,17 @@ class RequestMapper:
 
         postfix = None
 
-        if str_repr.endswith(".zarray") or \
-            str_repr.endswith(".zgroup") or \
-            str_repr.endswith("shape") or \
-            str_repr.endswith("dtype"):
-                possible_postfixes: list[str] = str_repr.split("}/")
-                postfix = possible_postfixes[-1]
-
+        if (
+            str_repr.endswith(".zarray")
+            or str_repr.endswith(".zgroup")
+            or str_repr.endswith("shape")
+            or str_repr.endswith("dtype")
+        ):
+            possible_postfixes: list[str] = str_repr.split("}/")
+            postfix = possible_postfixes[-1]
 
         from zfdb.business.ZarrKeyMatcher import ZarrKeyMatcher
+
         chunking_info = ZarrKeyMatcher.extract_chunking(str_repr)
 
         if chunking_info is not None:

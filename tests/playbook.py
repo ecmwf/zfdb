@@ -5,7 +5,7 @@ from zfdb.FDBStore import FDBStore
 
 
 def test_initialization():
-    store = FDBStore()
+    store = FDBMapping()
     root = zarr.group(store=store, chunk_store=None)
 
     # print("--- PRINTING TREE ROOT ----")
@@ -25,7 +25,16 @@ def test_initialization():
     # tmp = ai_date_group[ '{"domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "1000", "param": "129", "step": "0"}' ]
     ai_date_param_group = ai_date_group[{"param": "129"}]
     subselection_group = ai_date_param_group[{"time": "0000", "levelist": "1000"}]
-    tmp = subselection_group[ {"domain": "g", "expver": "0001", "stream": "oper", "levtype": "pl", "type": "fc", "step": "0"} ]
+    tmp = subselection_group[
+        {
+            "domain": "g",
+            "expver": "0001",
+            "stream": "oper",
+            "levtype": "pl",
+            "type": "fc",
+            "step": "0",
+        }
+    ]
 
     print("------ General accessability test ---------------")
     # print(ai_group.shape)

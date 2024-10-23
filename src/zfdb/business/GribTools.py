@@ -105,6 +105,7 @@ production_template_numbers = {
     10034: {"forcastTime": True, "timeRange": True},
 }
 
+
 class MagicianBase:
     def variable_hook(self, key, info):
         pass
@@ -169,17 +170,20 @@ class Magician(MagicianBase):
             attrs = {}
         return attrs, coords, {}, [name], None
 
+
 def is_value(v):
     if v is None or v == "undef" or v == "unknown":
         return False
     else:
         return True
 
+
 def arrays_to_list(o):
     try:
         return o.tolist()
     except AttributeError:
         return o
+
 
 def get_time_offset(gribmessage, lean_towards="end"):
     """Calculate time offset based on GRIB definition.
@@ -245,6 +249,7 @@ def get_time_offset(gribmessage, lean_towards="end"):
             offset += gribmessage.get("lengthOfTimeRange", 0) * unit
     return offset
 
+
 def find_stream(f, needle, buffersize=1024 * 1024):
     keep_going = True
     while keep_going:
@@ -261,6 +266,7 @@ def find_stream(f, needle, buffersize=1024 * 1024):
             pos = start + idx
             f.seek(pos)
             return pos
+
 
 def detect_large_grib1_special_coding(f, part_size):
     """
@@ -301,6 +307,7 @@ def detect_large_grib1_special_coding(f, part_size):
 
     else:  # normal grib
         return part_size
+
 
 # def _split_file(f, skip=0):
 #     """
@@ -346,16 +353,16 @@ def detect_large_grib1_special_coding(f, part_size):
 #         if skip and part > skip:
 #             break
 
+
 def _split_file(data_retriever):
     iterator = Reader(data_retriever)
 
     for msg in iterator:
         yield msg
 
+
 def scan_gribfile(data_retriever, **kwargs):
-
     for msg in _split_file(data_retriever):
-
         mid = eccodes.codes_new_from_message(bytes(msg._buffer))
         m = cfgrib.cfmessage.CfMessage(mid)
         t = eccodes.codes_get_native_type(m.codes_id, "values")
@@ -403,6 +410,7 @@ def scan_gribfile(data_retriever, **kwargs):
             },
             **kwargs,
         }
+
 
 def inspect_grib_indices(messages, magician=Magician()):
     coords_by_key = defaultdict(lambda: tuple(set() for _ in magician.dimkeys))

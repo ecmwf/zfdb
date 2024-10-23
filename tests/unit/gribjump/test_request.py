@@ -1,5 +1,6 @@
 from zfdb.gribjump.request import GribJumpRequestMapper
 
+
 class TestRequest:
     def test_default_initialization_from_dict(self):
         dict_request = {
@@ -19,7 +20,7 @@ class TestRequest:
         request = GribJumpRequestMapper.map_from_dict(dict_request)
 
         assert request.keys["class"] == ["ai"]
-        assert request.keys["date"] == ["20240601","20240602","20240603"]
+        assert request.keys["date"] == ["20240601", "20240602", "20240603"]
         assert request.keys["domain"] == ["g"]
         assert request.keys["expver"] == ["0001"]
         assert request.keys["stream"] == ["oper"]
@@ -29,7 +30,6 @@ class TestRequest:
         assert request.keys["levelist"] == ["850"]
         assert request.keys["param"] == ["129"]
         assert request.keys["step"] == ["0"]
-
 
     def test_default_initialization_from_string_dict(self):
         request_str = '{"class": "ai", \
@@ -47,7 +47,7 @@ class TestRequest:
         request = GribJumpRequestMapper.map_from_str(request_str)
 
         assert request.keys["class"] == ["ai"]
-        assert request.keys["date"] == ["20240601","20240602","20240603"]
+        assert request.keys["date"] == ["20240601", "20240602", "20240603"]
         assert request.keys["domain"] == ["g"]
         assert request.keys["expver"] == ["0001"]
         assert request.keys["stream"] == ["oper"]
@@ -75,7 +75,7 @@ class TestRequest:
         request = GribJumpRequestMapper.map_from_str(request_str)
 
         assert request.keys["class"] == ["ai"]
-        assert request.keys["date"] == ["20240601","20240602"]
+        assert request.keys["date"] == ["20240601", "20240602"]
         assert request.keys["domain"] == ["g"]
         assert request.keys["expver"] == ["0001"]
         assert request.keys["stream"] == ["oper"]

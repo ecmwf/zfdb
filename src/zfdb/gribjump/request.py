@@ -1,12 +1,12 @@
 import json
 
-class MarsRequest:
 
+class MarsRequest:
     def __init__(self, keys: dict[str, str]) -> None:
         self.keys = keys
 
-class SanitizedMarsRequest:
 
+class SanitizedMarsRequest:
     def __init__(self, keys: dict[str, list[str]]) -> None:
         self.keys = keys
 
@@ -17,7 +17,6 @@ class SanitizedMarsRequest:
 class GribJumpRequestMapper:
     @staticmethod
     def __sanitize(dic: dict[str, str]) -> dict[str, list[str]]:
-
         result = {}
 
         for key in dic.keys():
@@ -31,9 +30,8 @@ class GribJumpRequestMapper:
                     result[key] = [values]
             else:
                 raise RuntimeError(f"Can't sanitize {dic}")
-            
-        return result
 
+        return result
 
     @staticmethod
     def map_from_dict(dic: dict[str, str]) -> SanitizedMarsRequest:
@@ -46,7 +44,6 @@ class GribJumpRequestMapper:
 
     @staticmethod
     def map_from_str(str_repr: str) -> SanitizedMarsRequest:
-
         ## Root group is empty string
         if str_repr == "":
             return SanitizedMarsRequest(keys={})
@@ -63,7 +60,7 @@ class GribJumpRequestMapper:
             mars_keys = {}
 
             for t in token:
-                k,v = t.split("=")
+                k, v = t.split("=")
                 k = k.strip()
                 v = v.strip()
                 mars_keys[k] = v
@@ -72,4 +69,3 @@ class GribJumpRequestMapper:
         else:
             mars_keys = json.loads(str_repr)
             return SanitizedMarsRequest(GribJumpRequestMapper.__sanitize(mars_keys))
-

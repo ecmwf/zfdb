@@ -1,10 +1,13 @@
 import zarr
-from zfdb.business.FDBStore import FDBStore
-from zfdb.business.transformers.FloatingPointTransformers import FloatingPoint16Transformer
+from zfdb.business.FDBStore import FDBMapping
+from zfdb.business.transformers.FloatingPointTransformers import (
+    FloatingPoint16Transformer,
+)
+
 
 class TestTransformer:
     def test_transformer(self):
-        store = FDBStore()
+        store = FDBMapping()
         transformer = FloatingPoint16Transformer(inner_store=store)
         root = zarr.group(store=transformer, chunk_store=None)
 
@@ -13,12 +16,19 @@ class TestTransformer:
 
         ai_date_param_group = ai_date_group[{"param": "129"}]
         subselection_group = ai_date_param_group[{"time": "0000", "levelist": "1000"}]
-        data = subselection_group[ {"domain": "g", "expver": "0001", "stream": "oper", 
-                                 "levtype": "pl", "type": "fc", 
-                                 "step": list(range(0, 24, 12))} ]
+        data = subselection_group[
+            {
+                "domain": "g",
+                "expver": "0001",
+                "stream": "oper",
+                "levtype": "pl",
+                "type": "fc",
+                "step": list(range(0, 24, 12)),
+            }
+        ]
 
         print(data.shape)
-        print(data[0,0,0,0])
+        print(data[0, 0, 0, 0])
 
         print(data)
         print(subselection_group.tree())
@@ -33,7 +43,7 @@ class TestTransformer:
         assert len(subselection_group) == 11
         assert len(data) == 1
 
-if __name__ == "__main__":
-    test_class  = TestTransformer()
-    test_class.test_transformer()
 
+if __name__ == "__main__":
+    test_class = TestTransformer()
+    test_class.test_transformer()

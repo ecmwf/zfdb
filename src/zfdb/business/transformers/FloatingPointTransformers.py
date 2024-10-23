@@ -1,11 +1,11 @@
 import numpy as np
 from numpy._core.multiarray import dtype
 
-from zfdb.business.FDBStore import FDBStore
+from zfdb.business.FDBStore import FDBMapping
 from zfdb.business.Request import Request
 
-class FloatingPoint16Transformer(FDBStore):
 
+class FloatingPoint16Transformer(FDBMapping):
     def __init__(self, inner_store) -> None:
         self.inner_store = inner_store
 
@@ -33,7 +33,7 @@ class FloatingPoint16Transformer(FDBStore):
         if isinstance(result, str):
             return result
         elif isinstance(result, np.ndarray):
-           return result.astype(dtype=np.float16).astype(dtype=np.float64)
+            return result.astype(dtype=np.float16).astype(dtype=np.float64)
         else:
             return result
 

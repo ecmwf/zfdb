@@ -2,9 +2,37 @@ import os
 import pathlib
 import shutil
 
-import yaml
-import pytest
+import ecmwfapi
 import pyfdb
+import pytest
+import yaml
+
+
+@pytest.fixture(scope="session", autouse=True)
+def download_testdata_from_mars(request) -> None:
+    """
+    Downloads test data into <source-root>/tests/data if 'test_data.grib does
+    not yet exist'. This is a workaround to prevent the need to commit multiple
+    GB of test data.
+    """
+    target_path = request.config.rootpath / "tests" / "data" / "testdata.grib"
+    if target_path.exists():
+        return
+    mars_request = """
+        retrieve,
+            class=ai,
+            date=20240601/20240602/20240603/20240604/20240605/20240606,
+            domain=g,
+            expver=0001,
+            stream=oper,
+            time=0000,
+            levtype=pl,
+            step=0/to/120/by/12,
+            param=129/130/131/132,
+            type=fc
+    """
+    c = ecmwfapi.ECMWFService("mars")
+    c.execute(mars_request, str(target_path))
 
 
 @pytest.fixture(scope="session", autouse=True)

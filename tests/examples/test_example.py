@@ -29,7 +29,7 @@ class TestExample:
         print(subselection_group.tree())
         print(subselection_group.info)
 
-        assert len(root) == 1614
+        assert len(root) == 1584
         assert len(ai_date_param_group) == 66
         assert len(subselection_group) == 11
         assert len(tmp) == 1

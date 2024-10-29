@@ -10,9 +10,9 @@ from zfdb.business.Request import Request, RequestMapper
 
 from zfdb.business.ZarrKeyMatcher import ZarrKeyMatcher
 from zfdb.business.ZarrMetadataBuilder import ZarrMetadataBuilder
+from collections.abc import MutableMapping
 
-
-class FDBMapping(Store):
+class FDBMapping(MutableMapping):
     """Storage class using FDB.
 
     .. note:: This is an experimental feature.
@@ -150,21 +150,3 @@ class FDBMapping(Store):
 
         return True
 
-    def listdir(self, path: str = "") -> List[str]:
-        listIterator = self.keylist()
-        raw_group_request = RequestMapper.map_from_raw_input_dict(
-            path
-        ).build_mars_request()
-
-        result = []
-
-        for it in listIterator:
-            raw_mars_request = it.build_mars_request()
-
-            if FDBMapping._filter_group(raw_mars_request, raw_group_request):
-                result.append(json.dumps(it.build_mars_keys_span()))
-
-        return result
-
-    def rmdir(self, path: str = "") -> None:
-        raise NotImplementedError("This method is not implemented")

@@ -1,5 +1,5 @@
 import zarr
-from zfdb.business.FDBStore import FDBMapping
+from zfdb.business.FDBMapping import FDBMapping
 
 
 class TestExample:

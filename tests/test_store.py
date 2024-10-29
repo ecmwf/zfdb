@@ -1,7 +1,7 @@
 import zarr
 
 from zfdb import *
-from zfdb.business.FDBStore import FDBMapping
+from zfdb.business.FDBMapping import FDBMapping
 
 from numpy.testing import assert_array_equal
 
@@ -73,7 +73,7 @@ def test_retrieving_a_field():
 
 
 # def test_slicing_subselection_vs_individual_retrieval():
-#     store = FDBStore()
+#     store = FDBMapping()
 #     root = zarr.group(store=store, chunk_store=None)
 #
 #     time_param_slice = root[ '{"class": "ai", "date": "20240601/20240602/20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]
@@ -89,7 +89,7 @@ def test_retrieving_a_field():
 #     assert_array_equal(time_param_slice[0:3, 0:2, 0, 10:20][2], time_param_slice_03[0, 0:2, 0, 10:20])
 #
 # def test_aggregating_time_param_values():
-#     store = FDBStore()
+#     store = FDBMapping()
 #     root = zarr.group(store=store, chunk_store=None)
 #
 #     time_param_slice = root[ '{"class": "ai", "date": "20240601/20240602/20240603", "domain": "g", "expver": "0001", "stream": "oper", "time": "0000", "levtype": "pl", "type": "fc", "levelist": "850", "param": "129/130", "step": "0"}' ]

@@ -1,6 +1,6 @@
 from zarr.hierarchy import Group
 
-from zfdb.business.FDBStore import FDBMapping
+from zfdb.business.FDBMapping import FDBMapping
 
 import zarr
 import numpy as np

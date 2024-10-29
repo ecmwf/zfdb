@@ -1,7 +1,7 @@
 import zarr
 
 from zfdb import *
-from zfdb.FDBStore import FDBStore
+from zfdb.FDBMapping import FDBStore
 
 
 def test_initialization():

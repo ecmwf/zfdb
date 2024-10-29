@@ -1,7 +1,7 @@
 import numpy as np
 from numpy._core.multiarray import dtype
 
-from zfdb.business.FDBStore import FDBMapping
+from zfdb.business.FDBMapping import FDBMapping
 from zfdb.business.Request import Request
 
 

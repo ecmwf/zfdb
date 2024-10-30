@@ -1,2 +1,21 @@
-[tool.black]
-line-length = 120
+[project]
+name = 'zfdb'
+version = '2024.10'
+# TODO(kkratz): seperate general and test only dependencies
+dependencies = [
+    'setuptools',
+    'pytest',
+    'cffi',
+    'zarr~=2.18',
+    'pyyaml',
+    'pyfdb@git+https://github.com/ecmwf/pyfdb.git@develop',
+    'pygribjump@git+https://github.com/ecmwf/gribjump.git@develop',
+    'ecmwf-client-api'
+]
+
+[tool.ruff.lint]
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
+# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
+# McCabe complexity (`C901`) by default.
+select = ["E4", "E7", "E9", "F"]
+ignore = []

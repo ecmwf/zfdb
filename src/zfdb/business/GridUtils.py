@@ -4,6 +4,7 @@ from scipy.special import roots_legendre
 
 from . import GridUtils as gu
 
+
 class GribGrid:
     _subclasses = []
 

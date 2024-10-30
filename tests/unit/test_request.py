@@ -6,13 +6,11 @@ from zfdb.business.Request import Request, RequestMapper
 
 
 class TestRequest:
-
     def test_default_initialization_non_list_values(self):
         keys = {"some_key": "some_value"}
 
         with pytest.raises(RuntimeError) as runtimeError:
             Request(keys=keys)
-
 
     def test_default_initialization(self):
         keys = {"some_key": ["some_value"]}
@@ -40,7 +38,6 @@ class TestRequest:
 
         assert request_without_postfix.postfix is None
         assert request_without_postfix.postfix != request.postfix
-
 
 
 class TestRequestMapper:
@@ -79,7 +76,7 @@ class TestRequestMapper:
             "class": "domain",
         }
 
-        raw_prefix_list = [raw_prefix_ai, raw_prefix_domain] 
+        raw_prefix_list = [raw_prefix_ai, raw_prefix_domain]
 
         raw_request = {
             "domain": "g",
@@ -99,14 +96,15 @@ class TestRequestMapper:
 
         request = RequestMapper.map_from_raw_input_dict(str_request)
 
-
         assert len(request.prefix) == len(raw_prefix_list)
 
         assert len(request.prefix[0].keys.keys()) == len(raw_prefix_ai)
         assert len(request.prefix[1].keys.keys()) == len(raw_prefix_domain)
 
         assert len(request.keys) == len(raw_request)
-        assert request.postfix == ".zarray"  # There should be no postfix, see postfix tests below
+        assert (
+            request.postfix == ".zarray"
+        )  # There should be no postfix, see postfix tests below
 
         for key in raw_prefix_ai.keys():
             if key == "class":
@@ -205,7 +203,6 @@ class TestRequestMapper:
 
         assert request.prefix is None
         assert request.postfix == zarr_postfix
-
 
     chunking_info = ["0", "1", "0.0", "0.1", "1.1", "1.0", "0.0.0.0"]
 

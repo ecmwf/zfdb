@@ -4,19 +4,19 @@ from json import JSONEncoder
 class ZarrMetadataBuilder:
     """
     Create json files for zarr metadata similar to the one below.
-                { 
+                {
                     "zarr_format": 2,
                     "dtype": "<f4",
                     "shape": [100, 100],
                     "fill_value": "NaN",
                     "chunks": "[1, 1]",
-                    "compressor": { 
-                        "blocksize": 0, 
-                        "clevel": 5, 
-                        "cname": "lz4", 
-                        "id": "blosc", 
-                        "shuffle": 1 
-                    }, 
+                    "compressor": {
+                        "blocksize": 0,
+                        "clevel": 5,
+                        "cname": "lz4",
+                        "id": "blosc",
+                        "shuffle": 1
+                    },
                     "order": "C",
                     "filters": null
                 }
@@ -26,9 +26,9 @@ class ZarrMetadataBuilder:
         self._zarr_format = 2
         self._dtype = None
         self._shape = None
-        self._fill_value =None
+        self._fill_value = None
         self._chunks = None
-        self._compressor =None
+        self._compressor = None
         self._order = None
         self._filters = None
 
@@ -39,8 +39,8 @@ class ZarrMetadataBuilder:
         as well as setting up things to work with the gribjump axis object
         """
 
-        time_dim = len(mars_request['date'])
-        param_dim = len(mars_request['param'])
+        time_dim = len(mars_request["date"])
+        param_dim = len(mars_request["param"])
 
         metadata = ZarrMetadataBuilder()
         metadata.zarr_format(2)
@@ -53,7 +53,7 @@ class ZarrMetadataBuilder:
         metadata.filters(None)
 
         return metadata.build()
-    
+
     def zarr_format(self, zarr_Version):
         self._zarr_format = zarr_Version
         return self
@@ -87,5 +87,9 @@ class ZarrMetadataBuilder:
         return self
 
     def build(self):
-        self_dict = {key.lstrip("_"):value for key, value in self.__dict__.items() if not key.startswith('__') and not callable(key)}
+        self_dict = {
+            key.lstrip("_"): value
+            for key, value in self.__dict__.items()
+            if not key.startswith("__") and not callable(key)
+        }
         return JSONEncoder().encode(self_dict)

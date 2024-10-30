@@ -1,5 +1,6 @@
 from zfdb.business.Request import Request
 
+
 class TestUtils:
     @staticmethod
     def collapse_keys(dictionary: dict[str, list[str]]) -> dict[str, str]:

@@ -4,10 +4,10 @@ import numpy as np
 import copy
 
 from zfdb.business.ZarrMetadataBuilder import ZarrMetadataBuilder
-from zfdb.business.Request import Request 
+from zfdb.business.Request import Request
+
 
 class GribJumpRequestMapper:
-
     @staticmethod
     def to_grib_jump(dictonary: dict[str, list[str]]) -> dict[str, str]:
         pygribjump_dict = {}
@@ -19,7 +19,6 @@ class GribJumpRequestMapper:
 
 
 class GribJumpRequestMerger:
-
     def __init__(self) -> None:
         self.gj = pygribjump.GribJump()
 
@@ -27,15 +26,17 @@ class GribJumpRequestMerger:
     Divides a given mars request into several individual GribJump requests
     and merge the result to the wished data layout
     """
-    def request(self, mars_request: dict[str, list[str]]):
 
+    def request(self, mars_request: dict[str, list[str]]):
         gribjump_request = GribJumpRequestMapper.to_grib_jump(mars_request)
-        
+
         gj_axes = self.gj.axes(gribjump_request)
 
         flattened_array = []
-        all_requests =  GribJumpRequestMerger._assemble_all_subrequests(gribjump_request, gj_axes)
-        
+        all_requests = GribJumpRequestMerger._assemble_all_subrequests(
+            gribjump_request, gj_axes
+        )
+
         for subreq in all_requests["date"]:
             gj_result = self.gj.extract([(subreq, [(0, 1 * 542080)])])
             # flattened_array.append(gj_result[0][i][0][0])
@@ -44,19 +45,20 @@ class GribJumpRequestMerger:
         return np.concatenate(flattened_array)
 
     def _assemble_all_subrequests(mars_request: dict, gj_axes):
-
         # Why is the axes object returning more values than specified in mars request?
         date_keys = sorted(mars_request["date"].split("/"))
         param_keys = sorted(mars_request["param"].split("/"))
 
-        date_requests = GribJumpRequestMerger._subrequests(mars_request, "date", date_keys)
+        date_requests = GribJumpRequestMerger._subrequests(
+            mars_request, "date", date_keys
+        )
 
-        requests = {
-                "date": []
-                }
-        
+        requests = {"date": []}
+
         for date_request in date_requests:
-            param_requests = GribJumpRequestMerger._subrequests(date_request, "param", param_keys) 
+            param_requests = GribJumpRequestMerger._subrequests(
+                date_request, "param", param_keys
+            )
             for param_request in param_requests:
                 requests["date"].append(param_request)
 
@@ -73,9 +75,7 @@ class GribJumpRequestMerger:
 
         return list_subrequests
 
-
     def forward(self, mars_request: dict[str, list[str]]):
-
         pygribjump_request = GribJumpRequestMapper.to_grib_jump(mars_request)
 
         return self.gj.extract([(pygribjump_request, [(0, 542080)])])[0][0][0][0]
@@ -98,7 +98,7 @@ class GribJumpRequestMerger:
     #     #     # Levellist bug? Returing all keys although only one is specfied
     #     #     if key in ["levelist", "param", "step" ]:
     #     #         continue
-    #     #     
+    #     #
     #     #     # Axes consists out of a range for a key, so the request wasn't
     #     #     # fully specified
     #     #     if axes[key] != mars_request[key]:
@@ -124,7 +124,9 @@ class GribJumpRequestMerger:
 
     def existing(self, mars_request: dict[str, list[str]]):
         pygribjump_request = GribJumpRequestMapper.to_grib_jump(mars_request)
-        return len(self.gj.extract([(pygribjump_request, [(0, 542080)])])[0][0][0][0]) > 0
+        return (
+            len(self.gj.extract([(pygribjump_request, [(0, 542080)])])[0][0][0][0]) > 0
+        )
 
     def zarr_metadata(self, mars_request: dict[str, list[str]]):
         return ZarrMetadataBuilder().default(mars_request)

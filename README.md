@@ -7,6 +7,15 @@ Interfaces and functionality are likely to change.
 
 ## How to run tests
 
+### Downloading testdata
+
+The tests will use the MARS web api to download approx. 1.5GB of testdata and store this under
+`tests/data/testdata.grib`. The download will be skipped if this file is
+present. To be able to download data you will need to have an api-key placed in
+`~/.ecmwfapirc`. You can get your api key from <https://api.ecmwf.int/v1/key/>
+
+### Executing the tests
+
 To run the tests `libgribjump` and `libfdb5` need to findable via `FDB5_DIR`
 and `GRIBJUMP_DIR` respectively. If you have installed `gribjump` and
 dependencies via `ecbundle`, both variables should point to the install

@@ -9,7 +9,7 @@ RETRIEVE,
     TIME       = 0000/0600/1200/1800,
     STEP       = 0,
     DOMAIN     = G,
-    TARGET     = "1.grb",
+    TARGET     = 1.grb,
     RESOL      = AUTO,
     GRID       = 20/20,
     DATE       = 20241101

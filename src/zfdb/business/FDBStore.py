@@ -33,6 +33,7 @@ class FDBMapping(Store):
 
     def __init__(
         self,
+        mars_request_set,
         prefix="",
         dimension_separator: Optional[DIMENSION_SEPARATOR] = None,
         **kwargs,

@@ -1,0 +1,16 @@
+RETRIEVE,
+    CLASS      = OD,
+    TYPE       = FC,
+    STREAM     = SCDA,
+    EXPVER     = 0001,
+    REPRES     = SH,
+    LEVTYPE    = SFC,
+    PARAM      = 143/228,
+    TIME       = 600,
+    STEP       = 6,
+    DOMAIN     = G,
+    TARGET     = "4.grb",
+    RESOL      = AUTO,
+    GRID       = 20/20,
+    DATE       = 20241101
+

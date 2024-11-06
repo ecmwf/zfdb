@@ -96,8 +96,3 @@ class TestAccess:
         np.testing.assert_array_equal(tmp_all_slice[0], tmp_850[0, 0, 0, 10:20])
         np.testing.assert_array_equal(tmp_all_slice[1], tmp_850_2[0, 0, 0, 10:20])
         np.testing.assert_array_equal(tmp_all_slice[2], tmp_850_3[0, 0, 0, 10:20])
-
-
-if __name__ == "__main__":
-    ta = TestAccess()
-    ta.test_time_slicing()

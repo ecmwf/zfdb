@@ -1,0 +1,692 @@
+{
+    "_create_yaml_config": {
+        "attribution": "ECMWF",
+        "build": {
+            "group_by": 10,
+            "use_grib_paramid": false,
+            "variable_naming": "default"
+        },
+        "common": {
+            "mars_request": {
+                "class": "od",
+                "expver": "0001",
+                "grid": "20./20.",
+                "type": "an"
+            }
+        },
+        "config_path": "/etc/ecmwf/nfs/dh1_home_a/ecm1635/zarr/test_recipe/recipe.yaml",
+        "dataset_status": "experimental",
+        "dates": {
+            "end": "2024-11-01T18:00:00",
+            "frequency": "6:00:00",
+            "group_by": 10,
+            "start": "2024-11-01T00:00:00"
+        },
+        "description": "Dataset from 2016 to 2016, single day,  from operational IFS, resolution o1280",
+        "input": {
+            "join": [
+                {
+                    "mars": {
+                        "class": "od",
+                        "expver": "0001",
+                        "grid": "20./20.",
+                        "levtype": "sfc",
+                        "param": [
+                            "10u",
+                            "10v",
+                            "2d",
+                            "2t",
+                            "lsm",
+                            "msl",
+                            "sdor",
+                            "skt",
+                            "slor",
+                            "sp",
+                            "tcw",
+                            "z"
+                        ],
+                        "type": "an"
+                    }
+                },
+                {
+                    "mars": {
+                        "class": "od",
+                        "expver": "0001",
+                        "grid": "20./20.",
+                        "level": [
+                            50,
+                            100,
+                            150,
+                            200,
+                            250,
+                            300,
+                            400,
+                            500,
+                            600,
+                            700,
+                            850,
+                            925,
+                            1000
+                        ],
+                        "levtype": "pl",
+                        "param": [
+                            "q",
+                            "t",
+                            "u",
+                            "v",
+                            "w",
+                            "z"
+                        ],
+                        "type": "an"
+                    }
+                },
+                {
+                    "accumulations": {
+                        "class": "od",
+                        "expver": "0001",
+                        "grid": "20./20.",
+                        "param": [
+                            "cp",
+                            "tp"
+                        ],
+                        "type": "an"
+                    }
+                },
+                {
+                    "constants": {
+                        "param": [
+                            "cos_latitude"
+                        ],
+                        "template": "${input.join.0.mars}"
+                    }
+                }
+            ]
+        },
+        "licence": "CC-BY-4.0",
+        "name": "aifs-od-an-oper-0001-mars-o1280-2016-single_day-6h-v1",
+        "output": {
+            "chunking": {
+                "dates": 1,
+                "ensembles": 1,
+                "variables": 33
+            },
+            "dtype": "float32",
+            "ensemble_dimension": 2,
+            "flatten_grid": true,
+            "order_by": [
+                {
+                    "valid_datetime": "ascending"
+                },
+                {
+                    "param_level": "ascending"
+                },
+                {
+                    "number": "ascending"
+                }
+            ],
+            "remapping": {
+                "param_level": "{param}_{levelist}"
+            },
+            "statistics": "param_level"
+        },
+        "reading_chunks": null,
+        "statistics": {
+            "allow_nans": []
+        }
+    },
+    "allow_nans": false,
+    "attribution": "ECMWF",
+    "data_request": {
+        "area": [
+            80.0,
+            0.0,
+            -80.0,
+            340.0
+        ],
+        "grid": [
+            20.0,
+            20.0
+        ],
+        "param_level": {
+            "pl": [
+                [
+                    "q",
+                    50
+                ],
+                [
+                    "q",
+                    100
+                ],
+                [
+                    "q",
+                    150
+                ],
+                [
+                    "q",
+                    200
+                ],
+                [
+                    "q",
+                    250
+                ],
+                [
+                    "q",
+                    300
+                ],
+                [
+                    "q",
+                    400
+                ],
+                [
+                    "q",
+                    500
+                ],
+                [
+                    "q",
+                    600
+                ],
+                [
+                    "q",
+                    700
+                ],
+                [
+                    "q",
+                    850
+                ],
+                [
+                    "q",
+                    925
+                ],
+                [
+                    "q",
+                    1000
+                ],
+                [
+                    "t",
+                    50
+                ],
+                [
+                    "t",
+                    100
+                ],
+                [
+                    "t",
+                    150
+                ],
+                [
+                    "t",
+                    200
+                ],
+                [
+                    "t",
+                    250
+                ],
+                [
+                    "t",
+                    300
+                ],
+                [
+                    "t",
+                    400
+                ],
+                [
+                    "t",
+                    500
+                ],
+                [
+                    "t",
+                    600
+                ],
+                [
+                    "t",
+                    700
+                ],
+                [
+                    "t",
+                    850
+                ],
+                [
+                    "t",
+                    925
+                ],
+                [
+                    "t",
+                    1000
+                ],
+                [
+                    "u",
+                    50
+                ],
+                [
+                    "u",
+                    100
+                ],
+                [
+                    "u",
+                    150
+                ],
+                [
+                    "u",
+                    200
+                ],
+                [
+                    "u",
+                    250
+                ],
+                [
+                    "u",
+                    300
+                ],
+                [
+                    "u",
+                    400
+                ],
+                [
+                    "u",
+                    500
+                ],
+                [
+                    "u",
+                    600
+                ],
+                [
+                    "u",
+                    700
+                ],
+                [
+                    "u",
+                    850
+                ],
+                [
+                    "u",
+                    925
+                ],
+                [
+                    "u",
+                    1000
+                ],
+                [
+                    "v",
+                    50
+                ],
+                [
+                    "v",
+                    100
+                ],
+                [
+                    "v",
+                    150
+                ],
+                [
+                    "v",
+                    200
+                ],
+                [
+                    "v",
+                    250
+                ],
+                [
+                    "v",
+                    300
+                ],
+                [
+                    "v",
+                    400
+                ],
+                [
+                    "v",
+                    500
+                ],
+                [
+                    "v",
+                    600
+                ],
+                [
+                    "v",
+                    700
+                ],
+                [
+                    "v",
+                    850
+                ],
+                [
+                    "v",
+                    925
+                ],
+                [
+                    "v",
+                    1000
+                ],
+                [
+                    "w",
+                    50
+                ],
+                [
+                    "w",
+                    100
+                ],
+                [
+                    "w",
+                    150
+                ],
+                [
+                    "w",
+                    200
+                ],
+                [
+                    "w",
+                    250
+                ],
+                [
+                    "w",
+                    300
+                ],
+                [
+                    "w",
+                    400
+                ],
+                [
+                    "w",
+                    500
+                ],
+                [
+                    "w",
+                    600
+                ],
+                [
+                    "w",
+                    700
+                ],
+                [
+                    "w",
+                    850
+                ],
+                [
+                    "w",
+                    925
+                ],
+                [
+                    "w",
+                    1000
+                ],
+                [
+                    "z",
+                    50
+                ],
+                [
+                    "z",
+                    100
+                ],
+                [
+                    "z",
+                    150
+                ],
+                [
+                    "z",
+                    200
+                ],
+                [
+                    "z",
+                    250
+                ],
+                [
+                    "z",
+                    300
+                ],
+                [
+                    "z",
+                    400
+                ],
+                [
+                    "z",
+                    500
+                ],
+                [
+                    "z",
+                    600
+                ],
+                [
+                    "z",
+                    700
+                ],
+                [
+                    "z",
+                    850
+                ],
+                [
+                    "z",
+                    925
+                ],
+                [
+                    "z",
+                    1000
+                ]
+            ],
+            "sfc": [
+                "10u",
+                "10v",
+                "2d",
+                "2t",
+                "cp",
+                "lsm",
+                "msl",
+                "sdor",
+                "skt",
+                "slor",
+                "sp",
+                "tcw",
+                "tp",
+                "z"
+            ]
+        },
+        "param_step": {
+            "sfc": [
+                [
+                    "cp",
+                    6
+                ],
+                [
+                    "tp",
+                    6
+                ]
+            ]
+        }
+    },
+    "description": "Dataset from 2016 to 2016, single day,  from operational IFS, resolution o1280",
+    "end_date": "2024-11-01T18:00:00",
+    "ensemble_dimension": 1,
+    "field_shape": [
+        9,
+        18
+    ],
+    "flatten_grid": true,
+    "frequency": "6h",
+    "history": [
+        {
+            "action": "initialised",
+            "timestamp": "2024-11-06T12:03:48.897922"
+        },
+        {
+            "action": "tmp_statistics_initialised",
+            "timestamp": "2024-11-06T12:03:48.902344",
+            "version": 3
+        },
+        {
+            "action": "init finished",
+            "timestamp": "2024-11-06T12:03:48.913487"
+        },
+        {
+            "action": "compute_statistics_end",
+            "timestamp": "2024-11-06T12:04:19.993263"
+        }
+    ],
+    "latest_write_timestamp": "2024-11-06T12:04:19.568958",
+    "licence": "CC-BY-4.0",
+    "missing_dates": [],
+    "order_by": [
+        {
+            "valid_datetime": "ascending"
+        },
+        {
+            "param_level": "ascending"
+        },
+        {
+            "number": "ascending"
+        }
+    ],
+    "proj_string": null,
+    "provenance_load": {
+        "distribution_names": {
+            "_cffi_backend": "cffi",
+            "dateutil": "python-dateutil",
+            "gribapi": "eccodes",
+            "semantic_version": "semantic-version",
+            "yaml": "PyYAML"
+        },
+        "git_versions": {},
+        "module_versions": {
+            "_cffi_backend": "1.17.1",
+            "_csv": "1.0",
+            "_ctypes": "1.1.0",
+            "_decimal": "1.70",
+            "anemoi.datasets": "0.4.5.dev54+g4c11a33",
+            "anemoi.utils": "0.4.1",
+            "aniso8601": "9.0.1",
+            "argparse": "1.1",
+            "cffi": "1.17.1",
+            "csv": "1.0",
+            "ctypes": "1.1.0",
+            "dateutil": "2.9.0.post0",
+            "decimal": "1.70",
+            "earthkit.data": "0.10.9",
+            "eccodes": "2.38.3",
+            "entrypoints": "0.4",
+            "filelock": "3.16.1",
+            "fsspec": "2024.10.0",
+            "gribapi": "2.38.3",
+            "ipaddress": "1.0",
+            "json": "2.0.9",
+            "logging": "0.5.1.2",
+            "numcodecs": "0.13.1",
+            "numpy": "2.1.2",
+            "platform": "1.0.8",
+            "pycparser": "2.22",
+            "re": "2.2.1",
+            "semantic_version": "2.10.0",
+            "six": "1.16.0",
+            "tqdm": "4.66.5",
+            "yaml": "6.0.2",
+            "zarr": "2.17.0",
+            "zlib": "1.0"
+        },
+        "python": "3.11.8",
+        "time": "2024-11-06T12:04:20.110829"
+    },
+    "remapping": {
+        "param_level": "{param}_{levelist}"
+    },
+    "resolution": 20.0,
+    "start_date": "2024-11-01T00:00:00",
+    "statistics_end_date": "2024-11-01T12:00:00",
+    "statistics_start_date": "2024-11-01T00:00:00",
+    "total_number_of_files": 56,
+    "total_size": 226448,
+    "uuid": "42b4a104-32ff-46a0-afbf-3098bbacf064",
+    "variables": [
+        "10u",
+        "10v",
+        "2d",
+        "2t",
+        "cos_latitude",
+        "cp",
+        "lsm",
+        "msl",
+        "q_100",
+        "q_1000",
+        "q_150",
+        "q_200",
+        "q_250",
+        "q_300",
+        "q_400",
+        "q_50",
+        "q_500",
+        "q_600",
+        "q_700",
+        "q_850",
+        "q_925",
+        "sdor",
+        "skt",
+        "slor",
+        "sp",
+        "t_100",
+        "t_1000",
+        "t_150",
+        "t_200",
+        "t_250",
+        "t_300",
+        "t_400",
+        "t_50",
+        "t_500",
+        "t_600",
+        "t_700",
+        "t_850",
+        "t_925",
+        "tcw",
+        "tp",
+        "u_100",
+        "u_1000",
+        "u_150",
+        "u_200",
+        "u_250",
+        "u_300",
+        "u_400",
+        "u_50",
+        "u_500",
+        "u_600",
+        "u_700",
+        "u_850",
+        "u_925",
+        "v_100",
+        "v_1000",
+        "v_150",
+        "v_200",
+        "v_250",
+        "v_300",
+        "v_400",
+        "v_50",
+        "v_500",
+        "v_600",
+        "v_700",
+        "v_850",
+        "v_925",
+        "w_100",
+        "w_1000",
+        "w_150",
+        "w_200",
+        "w_250",
+        "w_300",
+        "w_400",
+        "w_50",
+        "w_500",
+        "w_600",
+        "w_700",
+        "w_850",
+        "w_925",
+        "z",
+        "z_100",
+        "z_1000",
+        "z_150",
+        "z_200",
+        "z_250",
+        "z_300",
+        "z_400",
+        "z_50",
+        "z_500",
+        "z_600",
+        "z_700",
+        "z_850",
+        "z_925"
+    ],
+    "variables_with_nans": [],
+    "version": "0.20"
+}

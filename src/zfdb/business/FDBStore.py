@@ -1,6 +1,7 @@
 import json
 from typing import List, Optional
 
+from _pytest.legacypath import pytest_load_initial_conftests
 import pyfdb
 from zarr.storage import Store
 from zarr.types import DIMENSION_SEPARATOR
@@ -50,66 +51,105 @@ class FDBMapping(Store):
         self._erasable = False
         self._writeable = False
 
+        self.known_groups = [
+            "_build"
+        ]
+        self.known_arrays = [
+            "count",
+            "dates",
+            "data",
+            "has_nans",
+            "latitudes",
+            "longitudes",
+            "maximum",
+            "mean",
+            "minimum",
+            "squares",
+            "stdev",
+            "sums",
+            "_build/flags",
+            "_build/lengths",
+        ]
+
+        for req in mars_request_set:
+            self.gribjump_merger
+
     def __contains__(self, _key) -> bool:
         if _key == ".zgroup":
             return True
 
         # Avoid initialization of the zarr array
         # We are implementing a view
-        if _key == ".zarray":
+        if _key == ".zarray" or self.plain_group_array(_key):
             return False
 
-        request: Request = RequestMapper.map_from_raw_input_dict(_key)
-
-        if ZarrKeyMatcher.is_group(request):
-            # TODO: Combine prefix to a under-specified mars request and check
-            # whether it's in the axis object.
-
-            if request.is_fully_specified():
-                return False
-            else:
-                return True
-
-        if ZarrKeyMatcher.is_array(request):
-            if request.is_fully_specified():
-                return True
-            else:
-                return False
-
-        if ZarrKeyMatcher.is_group_shape_information(request):
-            return False
-
-        if ZarrKeyMatcher.has_chunking(request):
-            return True
-
-        return False
+        # request: Request = RequestMapper.map_from_raw_input_dict(_key)
+        #
+        # if ZarrKeyMatcher.is_group(request):
+        #     # TODO: Combine prefix to a under-specified mars request and check
+        #     # whether it's in the axis object.
+        #
+        #     if request.is_fully_specified():
+        #         return False
+        #     else:
+        #         return True
+        #
+        # if ZarrKeyMatcher.is_array(request):
+        #     if request.is_fully_specified():
+        #         return True
+        #     else:
+        #         return False
+        #
+        # if ZarrKeyMatcher.is_group_shape_information(request):
+        #     return False
+        #
+        # if ZarrKeyMatcher.has_chunking(request):
+        #     return True
+        #
+        # return False
 
     def _key(self, key):
         return f"{self._prefix}:{key}"
 
-    # {"class": "ai"}/{"date": "20240601"}/
+    def plain_group_array(self, key):
+        for group in self.known_groups:
+            if key == group + "/.zarray":
+                return True
+
+        return False
+
+    def is_group(self, key):
+        if key == ".zgroup":
+            return True
+        for group in self.known_groups:
+            if key == group + "/.zgroup":
+                return True
+
+    def is_known_array(self, key):
+        for array in self.known_arrays:
+            if key == array + "/.zarray":
+                return True
+
+    # build/.zarray
+    # build/.zgroup
+    # build/.zattrs
+    # .zarray
+    # .zgroup
+    # .zattrs
     def __getitem__(self, key):
         # Faking the zarr 2 file format
-        if key == ".zgroup":
+        if self.is_group(key):
             return '{"zarr_format": 2}'
 
-        request: Request = RequestMapper.map_from_raw_input_dict(key)
-
-        if ZarrKeyMatcher.is_group(request):
-            return '{"zarr_format": 2}'
-
-        if not request.is_fully_specified():
+        if self.plain_group_array(key):
             raise KeyError("No array found")
 
-        if ZarrKeyMatcher.is_array(request):
-            return ZarrMetadataBuilder.default(request.build_mars_request())
-
-        if ZarrKeyMatcher.has_chunking(request):
-            mars_request = request.build_mars_request()
-            return self.gribjump_merger.request(mars_request)
-
-        mars_request = request.build_mars_request()
-        return self.gribjump_merger.zarr_metadata(mars_request)
+        if self.is_known_array(key):
+            # Do mapping magic here.
+            # - Create several mars requests
+            # - Do those
+            # - Merge the results accordingly
+            pass
 
     def __setitem__(self, key, value):
         raise NotImplementedError("This method is not implemented")

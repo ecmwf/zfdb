@@ -10,7 +10,8 @@ dependencies = [
     'pyyaml',
     'pyfdb@git+https://github.com/ecmwf/pyfdb.git@develop',
     'pygribjump@git+https://github.com/ecmwf/gribjump.git@develop',
-    'ecmwf-api-client'
+    'ecmwf-api-client',
+    'pyyaml'
 ]
 
 [tool.ruff.lint]

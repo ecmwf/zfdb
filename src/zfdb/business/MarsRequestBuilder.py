@@ -1,4 +1,5 @@
 import json
+import yaml
 from pathlib import Path
 
 
@@ -34,9 +35,13 @@ class MarsRequestBuilder:
         request_lines = request_lines[1:]
 
         for line in request_lines:
+            # Remove whitespaces
             if line.strip() == "":
                 continue
-            #print(line)
+
+            # to lower case
+            line = line.lower()
+
             [key, value] =  line.split("=")
             mars_keys[key.strip()] = value.strip().rstrip(",")
 

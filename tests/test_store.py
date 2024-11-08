@@ -6,9 +6,17 @@ from zfdb.business.FDBStore import FDBMapping
 from numpy.testing import assert_array_equal
 
 
+def test_dummy() -> None:
+    mapping = FDBMapping(None)
+    store = zarr.open_group(mapping, mode="r")
+    print(store.tree())
+    assert store["_build/flags"][0] == 666
+
+
 def test_retrieving_a_field():
     store = FDBMapping()
     root = zarr.group(store=store, chunk_store=None)
+    # g = root["build"]
 
     # print("--- PRINTING TREE ROOT ----")
     # print(root.tree())

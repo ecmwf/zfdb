@@ -1,5 +1,5 @@
 import zarr
-from zfdb.business.FDBStore import FDBMapping
+from zfdb.business.FDBStore import FdbZarrMapping
 from zfdb.business.transformers.FloatingPointTransformers import (
     FloatingPoint16Transformer,
 )
@@ -7,7 +7,7 @@ from zfdb.business.transformers.FloatingPointTransformers import (
 
 class TestTransformer:
     def test_transformer(self):
-        store = FDBMapping()
+        store = FdbZarrMapping()
         transformer = FloatingPoint16Transformer(inner_store=store)
         root = zarr.group(store=transformer, chunk_store=None)
 

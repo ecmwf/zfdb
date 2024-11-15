@@ -1,39 +1,153 @@
-import json
-from typing import List, Optional
+from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
+from math import ceil
 
-from _pytest.legacypath import pytest_load_initial_conftests
-import pyfdb
+import numpy as np
+from pyfdb import FDB
 
-from zfdb.business.GribJumpRequestMerger import GribJumpRequestMerger
-from zfdb.business.Request import Request, RequestMapper
+from zfdb.business.ZarrMetadataBuilder import (
+    DotZarrArray,
+    DotZarrAttributes,
+    DotZarrGroup,
+)
 
-from zfdb.business.ZarrKeyMatcher import ZarrKeyMatcher
-from zfdb.business.ZarrMetadataBuilder import ZarrMetadataBuilder
+
+class ZfdbError(Exception):
+    pass
 
 
-class FDBZArray:
-    def __init__(self, path: str):
+class DataSource(ABC):
+    @abstractmethod
+    def create_dot_zarr_array(self) -> DotZarrArray: ...
+
+    def __getitem__(self, key) -> bytes: ...
+
+    def __contains__(self, key) -> bool: ...
+
+
+class ConstantValue(DataSource):
+    def __init__(self, value: int):
+        self._value = value
+
+    def create_dot_zarr_array(self) -> DotZarrArray:
+        return DotZarrArray(shape=[1], chunks=[1], dtype="int32", order="C")
+
+    def __getitem__(self, key) -> bytes:
+        if key == "0":
+            return self._value.to_bytes(4, "little")
+        raise KeyError
+
+    def __contains__(self, key) -> bool:
+        return key == "0"
+
+
+class ConstantValueField(DataSource):
+    """
+    Created just for testing purposes
+    """
+
+    def __init__(self, value: int, shape: list[int], chunks: list[int]) -> None:
+        self._value = value
+        if len(shape) != len(chunks):
+            raise ZfdbError()
+        self._shape = shape
+        self._chunks = chunks
+        self._chunk_counts = [ceil(s / c) for s, c in zip(self._shape, self._chunks)]
+        self._data = np.full(
+            shape=(self._chunks), fill_value=self._value, dtype=np.int32, order="C"
+        )
+
+    def create_dot_zarr_array(self) -> DotZarrArray:
+        return DotZarrArray(
+            shape=self._shape, chunks=self._chunks, dtype="int32", order="C"
+        )
+
+    def __getitem__(self, key) -> bytes:
+        index = [int(s) for s in key.split(".")]
+        if len(index) != len(self._shape):
+            raise KeyError
+        for d, c in zip(index, self._chunk_counts):
+            if not (0 <= d < c):
+                raise KeyError
+        # TODO(kkratz): this copies the data into a new bytes obj
+        return self._data.tobytes()
+
+    def __contains__(self, key) -> bool:
+        index = [int(s) for s in key.split(".")]
+        for d, c in zip(index, self._chunk_counts):
+            if not (0 <= d < c):
+                return False
+        return True
+
+
+class DatesSource(DataSource):
+    def __init__(
+        self,
+        start: np.datetime64,
+        stop: np.datetime64,
+        interval: np.timedelta64,
+        chunk: int,
+    ) -> None:
+        self._start = start
+        self._stop = stop
+        self._interval = interval
+        self._chunk = chunk
+        self._chunks = [chunk]
+        count = (stop - start) // interval
+        if start + count * interval == stop:
+            count += 1
+        self._data = [
+            np.zeros(shape=[self._chunk], dtype="datetime64[s]")
+            for _ in range(0, count)
+        ]
+        self._shape = [int(count)]
+        self._chunk_count = ceil(count / self._chunk)
+        for idx in range(0, count):
+            chunk_id = idx // self._chunk
+            self._data[chunk_id][idx - chunk_id * self._chunk] = (
+                self._start + self._interval * idx
+            )
+
+    def create_dot_zarr_array(self) -> DotZarrArray:
+        return DotZarrArray(
+            shape=self._shape, chunks=self._chunks, dtype="datetime64[s]", order="C"
+        )
+
+    def __getitem__(self, key) -> bytes:
+        # TODO(kkratz): better error handling & parsing
+        index = int(key)
+        if not (0 <= index < self._chunk_count):
+            raise KeyError
+        # TODO(kkratz): this is inefficient, but good enough for a prototype though
+        # copies the data into a new bytes obj
+        return self._data[index].tobytes()
+
+    def __contains__(self, key) -> bool:
+        # TODO(kkratz): better error handling & parsing
+        index = int(key)
+        if not (0 <= index < self._chunk_count):
+            return False
+        return True
+
+
+class FdbZarrArray:
+    def __init__(self, path: str, *, datasource=None):
         # full path to the array, e.g foo/bar without .zarray
         self._path = path
-        self._metadata = {
-            "zarr_format": 2,
-            "shape": [1],
-            "chunks": [1],
-            "dtype": ">i4",
-            "compressor": None,
-            "fill_value": 666,
-            "order": "C",
-            "filters": None,
-            "dimension_separator": ".",
-        }
-        self._attributes = dict()
+        self._datasource = datasource
+        if self._datasource:
+            self._metadata = self._datasource.create_dot_zarr_array()
+        else:
+            self._metadata = DotZarrArray(shape=[1], chunks=[1], dtype=">i4", order="C")
+        self._attributes = DotZarrAttributes()
 
     def __contains__(self, key: str) -> bool:
         if key == ".zarray":
             return True
         if key == ".zattrs":
             return True
+        if self._datasource:
+            return key in self._datasource
         # TODO(kkratz): delegate to datasource to check if this exists
         # return key in datasource
 
@@ -42,9 +156,11 @@ class FDBZArray:
 
     def __getitem__(self, key: str) -> bytes:
         if key == ".zarray":
-            return json.dumps(self._metadata).encode("utf8")
+            return self._metadata.asbytes()
         if key == ".zattrs":
-            return json.dumps(self._attributes).encode("utf8")
+            return self._attributes.asbytes()
+        if self._datasource:
+            return self._datasource[key]
         # TODO(kkratz): delegate to datasource to check if this exists
         # return datasource[key]
 
@@ -56,18 +172,18 @@ class FDBZArray:
         return self._path
 
 
-class FDBZGroup:
+class FdbZarrGroup:
     def __init__(self, path: str):
         # full path to the group, e.g foo/bar without .zgroup
         self._path = path
-        self._metadata = {"zarr_format": 2}
+        self._metadata = DotZarrGroup()
 
     def __contains__(self, key) -> bool:
         return key == ".zgroup"
 
     def __getitem__(self, key: str) -> bytes:
         if key == ".zgroup":
-            return json.dumps(self._metadata).encode("utf8")
+            return self._metadata.asbytes()
         raise KeyError(f"Key {key} not found")
 
     @property
@@ -75,8 +191,8 @@ class FDBZGroup:
         return self._path
 
 
-class FDBMapping(MutableMapping):
-    """Storage class using FDB.
+class FdbZarrMapping(MutableMapping):
+    """Provide access to FDB with a MutableMapping.
 
     .. note:: This is an experimental feature.
 
@@ -92,28 +208,36 @@ class FDBMapping(MutableMapping):
         mars_request_set,
         fdb_config=None,
     ):
-        self.gribjump_merger = GribJumpRequestMerger()
-        self.fdb = pyfdb.FDB(config=fdb_config)
+        self._fdb = FDB(config=fdb_config)
 
+        # TODO(kkratz): populate below structure based on recepie.yaml
         self._known_paths = {
             x.path: x
             for x in [
-                FDBZGroup(""),  # Don't forget the root group
-                FDBZArray("count"),
-                FDBZArray("dates"),
-                FDBZArray("data"),
-                FDBZArray("has_nans"),
-                FDBZArray("latitudes"),
-                FDBZArray("longitudes"),
-                FDBZArray("maximum"),
-                FDBZArray("mean"),
-                FDBZArray("minimum"),
-                FDBZArray("squares"),
-                FDBZArray("stdev"),
-                FDBZArray("sums"),
-                FDBZArray("_build/flags"),
-                FDBZArray("_build/lengths"),
-                FDBZGroup("_build"),  # Don't forget the root group
+                FdbZarrGroup(""),  # Don't forget the root group
+                FdbZarrArray("count"),
+                FdbZarrArray(
+                    "dates",
+                    datasource=DatesSource(
+                        start=np.datetime64("1979-01-01T00:00:00", "s"),
+                        stop=np.datetime64("2022-12-31T18:00:00", "s"),
+                        interval=np.timedelta64(6, "h"),
+                        chunk=2,
+                    ),
+                ),
+                FdbZarrArray("data"),
+                FdbZarrArray("has_nans"),
+                FdbZarrArray("latitudes"),
+                FdbZarrArray("longitudes"),
+                FdbZarrArray("maximum"),
+                FdbZarrArray("mean"),
+                FdbZarrArray("minimum"),
+                FdbZarrArray("squares"),
+                FdbZarrArray("stdev"),
+                FdbZarrArray("sums"),
+                FdbZarrArray("_build/flags", datasource=ConstantValue(7)),
+                FdbZarrArray("_build/lengths"),
+                FdbZarrGroup("_build"),  # Don't forget the root group
             ]
         }
 
@@ -142,80 +266,3 @@ class FDBMapping(MutableMapping):
         if arr := self._known_paths.get(prefix):
             return suffix in arr
         return False
-
-    # build/.zarray
-    # build/.zgroup
-    # build/.zattrs
-    # .zarray
-    # .zgroup
-    # .zattrs
-    # def __getitem__(self, key):
-    #     # Faking the zarr 2 file format
-    #     if self.is_group(key):
-    #         return '{"zarr_format": 2}'
-
-    #     if self.plain_group_array(key):
-    #         raise KeyError("No array found")
-
-    #     if self.is_known_array(key):
-    #         # Do mapping magic here.
-    #         # - Create several mars requests
-    #         # - Do those
-    #         # - Merge the results accordingly
-    #         pass
-
-    # def __setitem__(self, key, value):
-    #     raise NotImplementedError("This method is not implemented")
-
-    # def __delitem__(self, key):
-    #     raise NotImplementedError("This method is not implemented")
-
-    def keylist(self) -> list[Request]:
-        listIterator = self.fdb.list(keys=True)
-        return [RequestMapper.map_from_dict(it["keys"]) for it in listIterator]
-
-    # def __iter__(self):
-    #     yield from self.keylist()
-
-    # def __len__(self):
-    #     return len(self.keylist())
-
-    def __getstate__(self):
-        raise NotImplementedError("This method is not implemented")
-
-    def __setstate__(self, state):
-        prefix, kwargs = state
-        self.__init__(prefix=prefix, **kwargs)
-
-    def clear(self):
-        raise NotImplementedError("This method is not implemented")
-
-    @staticmethod
-    def _filter_group(
-        raw_mars_request: dict[str, list[str]], group_request: dict[str, list[str]]
-    ):
-        for key in group_request.keys():
-            if key in raw_mars_request:
-                for value in group_request[key]:
-                    if value in raw_mars_request[key]:
-                        continue
-                    else:
-                        return False
-
-        return True
-
-    def listdir(self, path: str = "") -> List[str]:
-        listIterator = self.keylist()
-        raw_group_request = RequestMapper.map_from_raw_input_dict(
-            path
-        ).build_mars_request()
-
-        result = []
-
-        for it in listIterator:
-            raw_mars_request = it.build_mars_request()
-
-            if FDBMapping._filter_group(raw_mars_request, raw_group_request):
-                result.append(json.dumps(it.build_mars_keys_span()))
-
-        return result

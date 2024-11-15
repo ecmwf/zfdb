@@ -1,11 +1,11 @@
 import numpy as np
 from numpy._core.multiarray import dtype
 
-from zfdb.business.FDBStore import FDBMapping
+from zfdb.business.FDBStore import FdbZarrMapping
 from zfdb.business.Request import Request
 
 
-class FloatingPoint16Transformer(FDBMapping):
+class FloatingPoint16Transformer(FdbZarrMapping):
     def __init__(self, inner_store) -> None:
         self.inner_store = inner_store
 

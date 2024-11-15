@@ -3,7 +3,7 @@ import numpy as np
 
 import copy
 
-from zfdb.business.ZarrMetadataBuilder import ZarrMetadataBuilder
+# from zfdb.business.ZarrMetadataBuilder import ZarrMetadataBuilder
 from zfdb.business.Request import Request
 
 

@@ -3,20 +3,22 @@ import zarr
 
 from zarr.convenience import open_group
 
-from zfdb.business import FDBMapping
+from zfdb.business import FdbZarrMapping
 from zfdb.business.MarsRequestBuilder import MarsRequestBuilder
+
 
 class TestAnemoiCmp:
     def test_simple_anemoi_cmp(self, data_path):
-
         anemoi_root_group = open_group("./tests/data/anemoi_minimal.zarr")
         data = anemoi_root_group["data"]
 
-        mars_request_set = MarsRequestBuilder(data_path / "integration" / "recipe.yaml").build_requests()
+        mars_request_set = MarsRequestBuilder(
+            data_path / "integration" / "recipe.yaml"
+        ).build_requests()
 
         # TODO: TKR
         # store = FDBMapping(mars_join=complex_object, zarr_data_layout=mapper)
-        store = FDBMapping(mars_request_set=mars_request_set)
+        store = FdbZarrMapping(mars_request_set=mars_request_set)
         root = zarr.group(store=store, chunk_store=None)
 
         build_group = root["_build"]

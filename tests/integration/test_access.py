@@ -1,6 +1,6 @@
 from zarr.hierarchy import Group
 
-from zfdb.business.FDBStore import FDBMapping
+from zfdb.business.FDBStore import FdbZarrMapping
 
 import zarr
 import numpy as np
@@ -8,13 +8,13 @@ import numpy as np
 
 class TestAccess:
     def test_create_root_group(self):
-        store = FDBMapping()
+        store = FdbZarrMapping()
         root = zarr.group(store=store, chunk_store=None)
 
         print(root.info)
 
     def test_simple_group_structure(self):
-        store = FDBMapping()
+        store = FdbZarrMapping()
         root = zarr.group(store=store, chunk_store=None)
 
         ai_date_param_group = root[{"class": "ai"}][{"date": "20240601"}][
@@ -51,7 +51,7 @@ class TestAccess:
         assert len(tmp) == 1
 
     def test_retrieve_values_from_group_field(self):
-        store = FDBMapping()
+        store = FdbZarrMapping()
         root = zarr.group(store=store, chunk_store=None)
 
         ai_group = root[{"class": "ai"}]
@@ -73,7 +73,7 @@ class TestAccess:
         print(data[0, 0, 0, :])
 
     def test_time_slicing(self):
-        store = FDBMapping()
+        store = FdbZarrMapping()
         root = zarr.group(store=store, chunk_store=None)
 
         # tmp_time_slice is a group

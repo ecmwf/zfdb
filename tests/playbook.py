@@ -5,7 +5,7 @@ from zfdb.FDBStore import FDBStore
 
 
 def test_initialization():
-    store = FDBMapping()
+    store = FdbZarrMapping()
     root = zarr.group(store=store, chunk_store=None)
 
     # print("--- PRINTING TREE ROOT ----")

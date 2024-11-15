@@ -1,10 +1,10 @@
 import zarr
-from zfdb.business.FDBStore import FDBMapping
+from zfdb.business.FDBStore import FdbZarrMapping
 
 
 class TestExample:
     def test_tree(self):
-        store = FDBMapping()
+        store = FdbZarrMapping()
         root = zarr.group(store=store, chunk_store=None)
 
         ai_date_param_group = root[{"class": "ai"}][{"date": "20240601"}][

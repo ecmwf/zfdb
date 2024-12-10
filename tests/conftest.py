@@ -1,3 +1,5 @@
+"""Top-level pytest configuration."""
+
 import os
 import pathlib
 import shutil
@@ -86,7 +88,9 @@ def data_path(request) -> pathlib.Path:
 
 
 @pytest.fixture(scope="session", autouse=False)
-def read_only_fdb_setup(data_path, tmp_path_factory) -> pathlib.Path:
+def read_only_fdb_setup(
+    data_path, tmp_path_factory
+) -> tuple[pathlib.Path, pathlib.Path]:
     """
     Creates a FDB setup in this tests temp directory.
     Test FDB currently reads all grib files in `tests/data`
@@ -120,4 +124,4 @@ def read_only_fdb_setup(data_path, tmp_path_factory) -> pathlib.Path:
     for f in grib_files:
         print(f"Archiving {f} into FDB at {tmp_path}")
         fdb.archive(f.read_bytes())
-    return tmp_path
+    return tmp_path, data_path

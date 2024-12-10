@@ -1,0 +1,2 @@
+class ZfdbError(Exception):
+    pass

@@ -69,14 +69,6 @@ def download_anemoi_compare_data_from_mars(request) -> None:
             )
 
 
-@pytest.fixture(scope="session", autouse=True)
-def gribjump_env() -> None:
-    """
-    Sets default environment variables that are not dependent on individual testsetup.
-    """
-    os.environ["GRIBJUMP_IGNORE_GRID"] = "1"
-
-
 @pytest.fixture(scope="session")
 def data_path(request) -> pathlib.Path:
     """
@@ -101,7 +93,7 @@ def read_only_fdb_setup(
     db_store_path = tmp_path / "db_store"
     db_store_path.mkdir()
     schema_path = tmp_path / "schema"
-    config = dict(
+    fdb_config = dict(
         type="local",
         engine="toc",
         schema=str(schema_path),
@@ -114,10 +106,18 @@ def read_only_fdb_setup(
             )
         ],
     )
-    config_path = tmp_path / "config.yaml"
-    config_path.write_text(yaml.dump(config))
+    fdb_config_path = tmp_path / "fdb_config.yaml"
+    fdb_config_path.write_text(yaml.dump(fdb_config))
     shutil.copy(data_path / "schema", schema_path)
-    os.environ["FDB5_CONFIG_FILE"] = str(config_path)
+    os.environ["FDB5_CONFIG_FILE"] = str(fdb_config_path)
+
+    os.environ["GRIBJUMP_IGNORE_GRID"] = "1"
+    os.environ["FDB_ENABLE_GRIBJUMP"] = "1"
+    gj_config = {"plugin": {"select": "class=(ea),stream=(enfo|oper),expver=(00..)"}}
+    gj_config_path = tmp_path / "gj_config.yaml"
+    gj_config_path.write_text(yaml.dump(gj_config))
+    os.environ["GRIBJUMP_CONFIG_FILE"] = str(gj_config_path)
+    os.environ["GRIBJUMP_DEBUG"] = "1"
 
     grib_files = data_path.glob("*.grib")
     fdb = pyfdb.FDB()

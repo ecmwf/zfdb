@@ -2,12 +2,12 @@ from .mapping import (
     FdbZarrArray,
     FdbZarrGroup,
     FdbZarrMapping,
-    build_fdb_store_from_recepie,
+    make_anemoi_dataset_like_view,
 )
 
 __all__ = [
     "FdbZarrArray",
     "FdbZarrGroup",
     "FdbZarrMapping",
-    "build_fdb_store_from_recepie",
+    "make_anemoi_dataset_like_view",
 ]

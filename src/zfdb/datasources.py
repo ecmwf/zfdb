@@ -3,14 +3,14 @@
 Contains implementations of datasources and factory functions for crating them.
 """
 
+import itertools
 import math
 from functools import cache
 
-import earthkit.data as ekd
+# import earthkit.data as ekd
 import numpy as np
 import pyfdb
 import pygribjump
-import itertools
 
 from .error import ZfdbError
 from .zarr import DataSource, DotZarrArray, DotZarrAttributes
@@ -199,9 +199,7 @@ class FdbSource(DataSource):
             request["date"] = date.replace("-", "")
             request["time"] = time
             request.pop("grid", None)
-            listing.append(
-                [to_name(i["keys"]) for i in self._fdb.list(request, keys=True)]
-            )
+            listing += [to_name(i["keys"]) for i in self._fdb.list(request, keys=True)]
 
         return DotZarrAttributes(variables=listing)
 

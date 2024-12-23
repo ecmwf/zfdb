@@ -57,17 +57,17 @@ class FdbZarrMapping(MutableMapping):
         return key in self._known_paths
 
 
-def extract_mars_requests_from_recepie(recepie: dict):
+def extract_mars_requests_from_recipe(recipe: dict):
     base_request = dict()
     # NOTE(kkratz): There is more available than just common.mars_request
-    if "common" in recepie and "mars_request" in recepie["common"]:
-        base_request = recepie["common"]["mars_request"]
+    if "common" in recipe and "mars_request" in recipe["common"]:
+        base_request = recipe["common"]["mars_request"]
 
-    if "dates" not in recepie:
-        raise ZfdbError("Expected 'dates' in recepie")
+    if "dates" not in recipe:
+        raise ZfdbError("Expected 'dates' in recipe")
 
-    start_date = recepie["dates"]["start"]
-    end_date = recepie["dates"]["end"]
+    start_date = recipe["dates"]["start"]
+    end_date = recipe["dates"]["end"]
 
     # TODO(kkratz): There is code in anemoi.utils to convert the textual representation to a timedelta64
     # see: anemoi.utils.dates.as_timedelta(...)
@@ -77,28 +77,33 @@ def extract_mars_requests_from_recepie(recepie: dict):
             raise ZfdbError(f"Invalid frequency str in recipe ('{s}')")
         return int(match.group(1)), match.group(2)
 
-    frequency = parse_frequency(recepie["dates"]["frequency"])
+    frequency = parse_frequency(recipe["dates"]["frequency"])
 
-    # recepies do support more than joins under input but for the sake of example we require
+    # recipes do support more than joins under input but for the sake of example we require
     # this to be present for now
-    if "input" not in recepie or "join" not in recepie["input"]:
-        raise ZfdbError("Expected 'input.join' in recepie")
+    if "input" not in recipe or "join" not in recipe["input"]:
+        raise ZfdbError("Expected 'input.join' in recipe")
 
     #  for now we only act on "mars" inputs, they need to be joined along the date-time axis
-    inputs = recepie["input"]["join"]
+    inputs = recipe["input"]["join"]
     requests = [base_request | src["mars"] for src in inputs if "mars" in src]
     return start_date, end_date, frequency, requests
 
 
-def build_fdb_store_from_recepie(
-    *, fdb_config: str | dict | None = None, recepie: dict
+def make_anemoi_dataset_like_view(
+    *,
+    fdb: pyfdb.FDB | None = None,
+    gribjump: pygribjump.GribJump | None = None,
+    recipe: dict,
 ) -> FdbZarrMapping:
-    fdb = pyfdb.FDB(config=fdb_config)
-    gribjump = pygribjump.GribJump()
     # get common mars request part
-    start_date, end_date, frequency, mars_requests = extract_mars_requests_from_recepie(
-        recepie
+    start_date, end_date, frequency, mars_requests = extract_mars_requests_from_recipe(
+        recipe
     )
+    if not fdb:
+        fdb = pyfdb.FDB()
+    if not gribjump:
+        gribjump = pygribjump.GribJump()
 
     reference_mars_request = mars_requests[0]
     date, time = start_date.split("T")

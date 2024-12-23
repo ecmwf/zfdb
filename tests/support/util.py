@@ -1,3 +1,5 @@
+import math
+
 import zarr
 import zarr.storage
 
@@ -39,3 +41,19 @@ def compare_zarr_stores(
             for (group_a, group_b) in zip(zarr_groups(a), zarr_groups(b), strict=True)
         )
     return False
+
+
+def print_in_closest_unit(val_in_ns) -> str:
+    """
+    Prints a nano second time value as human readable string.
+    10 -> '10ns'
+    1000 -> '10μs'
+    1000000 - > '10ms'
+
+    raises ValueError on values >= 1e12
+    """
+    units = ["ns", "μs", "ms", "s"]
+    exp = int(math.log10(val_in_ns)) // 3
+    if exp < len(units):
+        return f"{val_in_ns/10**(exp*3)}{units[exp]}"
+    raise ValueError

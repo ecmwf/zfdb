@@ -1,4 +1,6 @@
 #! /usr/bin/env python
+
+import argparse
 import math
 import os
 import shutil
@@ -9,6 +11,7 @@ from pathlib import Path
 
 import numpy as np
 import pyfdb
+import pygrib
 import pygribjump
 import tqdm
 import yaml
@@ -74,6 +77,11 @@ def make_example_datasets() -> list[ExampleDataSet]:
     ]
 
 
+def setup_system_database():
+    os.environ["GRIBJUMP_IGNORE_GRID"] = "1"
+    return pyfdb.FDB(), pygribjump.GribJump()
+
+
 def setup_database(
     datasets: list[ExampleDataSet], path: Path = Path.cwd()
 ) -> tuple[pyfdb.FDB, pygribjump.GribJump]:
@@ -111,14 +119,20 @@ def setup_database(
     fdb = pyfdb.FDB()
     for dataset in datasets:
         print(f"Archiving {dataset.grib_file.name}")
-        fdb.archive(dataset.grib_file.read_bytes())
-    fdb.flush()
+        grib_file = pygrib.open(dataset.grib_file)
+        for idx, msg in enumerate(tqdm.tqdm(grib_file)):
+            fdb.archive(msg.tostring())
+            if (idx + 1) % 256 == 0:
+                fdb.flush()
+        fdb.flush()
+    print("Setting up database - Finished")
     return fdb, pygribjump.GribJump()
 
 
 def create_callgraph(
     fdb: pyfdb.FDB, gribjump: pygribjump.GribJump, dataset: ExampleDataSet
 ):
+    print("Creating profile_stats.txt with python profiling information.")
     fdb_view = zarr.open_group(
         zfdb.make_anemoi_dataset_like_view(
             recipe=yaml.safe_load(dataset.recipe.read_text()),
@@ -209,17 +223,35 @@ def demo_aggeration(
     print("\n".join([f"\t{name} = {val}" for name, val in zip(variable_names, means)]))
 
 
-def main():
+def main(args):
     print("Begin Demo")
     datasets = make_example_datasets()
-    fdb, gribjump = setup_database(datasets)
+    if args.use_system_fdb:
+        fdb, gribjump = setup_system_database()
+    else:
+        fdb, gribjump = setup_database(datasets)
     for dataset in datasets:
         if dataset.anemoi_dataset:
-            create_callgraph(fdb, gribjump, dataset)
+            # create_callgraph(fdb, gribjump, dataset)
             demo_performance_comparison(fdb, gribjump, dataset)
         demo_aggeration(fdb, gribjump, dataset)
 
 
+def parse_cli_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-v", "--verbose", help="Enables verbose output", action="store_true"
+    )
+    parser.add_argument(
+        "--use-system-fdb",
+        help="Use the fdb instance provided by the system. No test data will be imported in this case.",
+        action="store_true",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    # be_quiet_stdout_and_stderr()
-    main()
+    args = parse_cli_args()
+    if not args.verbose:
+        be_quiet_stdout_and_stderr()
+    main(args)

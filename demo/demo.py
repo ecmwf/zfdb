@@ -233,7 +233,8 @@ def main(args):
     for dataset in datasets:
         if dataset.anemoi_dataset:
             # create_callgraph(fdb, gribjump, dataset)
-            demo_performance_comparison(fdb, gribjump, dataset)
+            # demo_performance_comparison(fdb, gribjump, dataset)
+            pass
         demo_aggeration(fdb, gribjump, dataset)
 
 

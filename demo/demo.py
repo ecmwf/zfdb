@@ -77,9 +77,23 @@ def make_example_datasets() -> list[ExampleDataSet]:
     ]
 
 
-def setup_system_database():
+def connect_to_database(path:Path = Path.cwd()):
+    print("Connecting to database")
+    db_store_path = path / "db_store"
+    if not db_store_path.exists():
+        raise Exception("No database found")
+    fdb_config_path = path / "fdb_config.yaml"
+    os.environ["FDB5_CONFIG_FILE"] = str(fdb_config_path)
+    gj_config = {"plugin": {"select": "class=(ea),stream=(enfo|oper),expver=(00..)"}}
+    gj_config_path = path / "gj_config.yaml"
+    gj_config_path.write_text(yaml.dump(gj_config))
+    os.environ["GRIBJUMP_CONFIG_FILE"] = str(gj_config_path)
     os.environ["GRIBJUMP_IGNORE_GRID"] = "1"
-    return pyfdb.FDB(), pygribjump.GribJump()
+    os.environ["FDB_ENABLE_GRIBJUMP"] = "1"
+
+    fdb = pyfdb.FDB()
+    print("Connecting to database - Finished")
+    return fdb, pygribjump.GribJump()
 
 
 def setup_database(
@@ -226,8 +240,8 @@ def demo_aggeration(
 def main(args):
     print("Begin Demo")
     datasets = make_example_datasets()
-    if args.use_system_fdb:
-        fdb, gribjump = setup_system_database()
+    if args.use_existing_fdb:
+        fdb, gribjump = connect_to_database()
     else:
         fdb, gribjump = setup_database(datasets)
     for dataset in datasets:
@@ -244,8 +258,8 @@ def parse_cli_args():
         "-v", "--verbose", help="Enables verbose output", action="store_true"
     )
     parser.add_argument(
-        "--use-system-fdb",
-        help="Use the fdb instance provided by the system. No test data will be imported in this case.",
+        "--use-existing-fdb",
+        help="Use existing fdb. No test data will be imported in this case.",
         action="store_true",
     )
     return parser.parse_args()

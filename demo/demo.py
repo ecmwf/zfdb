@@ -1,11 +1,13 @@
 #! /usr/bin/env python
 
 import argparse
+import logging
 import math
 import os
 import shutil
 import sys
 import time
+from collections import namedtuple
 from dataclasses import KW_ONLY, dataclass
 from pathlib import Path
 
@@ -48,7 +50,7 @@ def print_in_closest_unit(val_in_ns) -> str:
     units = ["ns", "μs", "ms", "s"]
     exp = int(math.log10(val_in_ns)) // 3
     if exp < len(units):
-        return f"{val_in_ns/10**(exp*3)}{units[exp]}"
+        return f"{val_in_ns / 10 ** (exp * 3)}{units[exp]}"
     raise ValueError
 
 
@@ -61,7 +63,7 @@ class ExampleDataSet:
     anemoi_dataset: Path | None = None
 
 
-def make_example_datasets() -> list[ExampleDataSet]:
+def example_datasets() -> list[ExampleDataSet]:
     data_location = Path(__file__).parent / "demo-data"
 
     return [
@@ -77,35 +79,14 @@ def make_example_datasets() -> list[ExampleDataSet]:
     ]
 
 
-def connect_to_database(path:Path = Path.cwd()):
-    print("Connecting to database")
+def create_database(demo_data_path: Path, path):
     db_store_path = path / "db_store"
-    if not db_store_path.exists():
-        raise Exception("No database found")
-    fdb_config_path = path / "fdb_config.yaml"
-    os.environ["FDB5_CONFIG_FILE"] = str(fdb_config_path)
-    gj_config = {"plugin": {"select": "class=(ea),stream=(enfo|oper),expver=(00..)"}}
-    gj_config_path = path / "gj_config.yaml"
-    gj_config_path.write_text(yaml.dump(gj_config))
-    os.environ["GRIBJUMP_CONFIG_FILE"] = str(gj_config_path)
-    os.environ["GRIBJUMP_IGNORE_GRID"] = "1"
-    os.environ["FDB_ENABLE_GRIBJUMP"] = "1"
-
-    fdb = pyfdb.FDB()
-    print("Connecting to database - Finished")
-    return fdb, pygribjump.GribJump()
-
-
-def setup_database(
-    datasets: list[ExampleDataSet], path: Path = Path.cwd()
-) -> tuple[pyfdb.FDB, pygribjump.GribJump]:
-    print("Setting up database")
-    db_store_path = path / "db_store"
+    logger.info(f"creating db configuration at {db_store_path}")
     if db_store_path.exists():
         shutil.rmtree(db_store_path)
     db_store_path.mkdir(parents=True, exist_ok=True)
     schema_path = path / "schema"
-    shutil.copy(Path(__file__).parent / "demo-data" / "schema", schema_path)
+    shutil.copy(demo_data_path / "schema", schema_path)
     fdb_config = {
         "type": "local",
         "engine": "toc",
@@ -121,26 +102,40 @@ def setup_database(
     }
     fdb_config_path = path / "fdb_config.yaml"
     fdb_config_path.write_text(yaml.dump(fdb_config))
-    os.environ["FDB5_CONFIG_FILE"] = str(fdb_config_path)
-
-    gj_config = {"plugin": {"select": "class=(ea),stream=(enfo|oper),expver=(00..)"}}
-    gj_config_path = path / "gj_config.yaml"
+    gj_config = {"plugin": {"select": "class=(ea|od),stream=(enfo|oper),expver=(00..)"}}
+    gj_config_path = path / "gribjump_config.yaml"
     gj_config_path.write_text(yaml.dump(gj_config))
-    os.environ["GRIBJUMP_CONFIG_FILE"] = str(gj_config_path)
-    os.environ["GRIBJUMP_IGNORE_GRID"] = "1"
-    os.environ["FDB_ENABLE_GRIBJUMP"] = "1"
+    return namedtuple("ConfigFiles", "fdb_config_path gribjump_config_path")(
+        fdb_config_path, gj_config_path
+    )
 
-    fdb = pyfdb.FDB()
+
+def open_gribjump(config_path: Path):
+    logger.info(f"Opening gribjump with config {config_path}")
+    os.environ["GRIBJUMP_CONFIG_FILE"] = str(config_path)
+    os.environ["GRIBJUMP_IGNORE_GRID"] = "1"
+    return pygribjump.GribJump()
+
+
+def open_database(config_path: Path):
+    logger.info(f"Opening fdb with config {config_path}")
+    os.environ["FDB5_CONFIG_FILE"] = str(config_path)
+    os.environ["FDB_ENABLE_GRIBJUMP"] = "1"
+    return pyfdb.FDB()
+
+
+def import_example_data(
+    fdb, datasets: list[ExampleDataSet], flush_every_nth_message=256
+):
+    logger.info("Importing data into fdb")
     for dataset in datasets:
-        print(f"Archiving {dataset.grib_file.name}")
+        logger.info(f"Archiving {dataset.grib_file.name}")
         grib_file = pygrib.open(dataset.grib_file)
         for idx, msg in enumerate(tqdm.tqdm(grib_file)):
             fdb.archive(msg.tostring())
-            if (idx + 1) % 256 == 0:
+            if (idx + 1) % flush_every_nth_message == 0:
                 fdb.flush()
         fdb.flush()
-    print("Setting up database - Finished")
-    return fdb, pygribjump.GribJump()
 
 
 def create_callgraph(
@@ -237,19 +232,48 @@ def demo_aggeration(
     print("\n".join([f"\t{name} = {val}" for name, val in zip(variable_names, means)]))
 
 
-def main(args):
-    print("Begin Demo")
-    datasets = make_example_datasets()
-    if args.use_existing_fdb:
-        fdb, gribjump = connect_to_database()
+def compute_mean_per_field(store) -> None:
+    logger.info(
+        f"Computing means over {store['data'].shape[0]} dates with {store['data'].shape[3]} values per field"
+    )
+    means_per_sample = []
+
+    for sample in tqdm.tqdm(store["data"]):
+        means_per_variable = np.mean(sample, axis=2).squeeze()
+        means_per_sample.append(means_per_variable)
+    means = np.mean(means_per_sample, axis=0)
+
+
+def create_db_cmd(args):
+    logger.info("Creating demo database")
+    configs = create_database(Path(__file__).parent / "demo-data", args.path)
+    fdb = open_database(configs.fdb_config_path)
+    datasets = example_datasets()
+    import_example_data(fdb, datasets)
+
+
+def profile_cmd(args):
+    fdb = open_database(args.database / "fdb_config.yaml")
+    gribjump = open_gribjump(args.database / "gribjump_config.yaml")
+    dataset = example_datasets()[0]
+    if args.source == "fdb":
+        store = zarr.open_group(
+            zfdb.make_anemoi_dataset_like_view(
+                recipe=yaml.safe_load(dataset.recipe.read_text()),
+                fdb=fdb,
+                gribjump=gribjump,
+            )
+        )
+    elif args.source == "zarr":
+        store = zarr.open_group(dataset.anemoi_dataset, mode="r")
     else:
-        fdb, gribjump = setup_database(datasets)
-    for dataset in datasets:
-        if dataset.anemoi_dataset:
-            # create_callgraph(fdb, gribjump, dataset)
-            # demo_performance_comparison(fdb, gribjump, dataset)
-            pass
-        demo_aggeration(fdb, gribjump, dataset)
+        logger.error(f"Unknown datasource {args.type}. Aborting.")
+        sys.exit(-1)
+
+    t0 = time.perf_counter_ns()
+    compute_mean_per_field(store)
+    t1 = time.perf_counter_ns()
+    logger.info(f"Computation took {print_in_closest_unit(t1 - t0)}")
 
 
 def parse_cli_args():
@@ -257,16 +281,55 @@ def parse_cli_args():
     parser.add_argument(
         "-v", "--verbose", help="Enables verbose output", action="store_true"
     )
-    parser.add_argument(
-        "--use-existing-fdb",
-        help="Use existing fdb. No test data will be imported in this case.",
-        action="store_true",
+    sub_parsers = parser.add_subparsers(dest="cmd", required=True)
+
+    create_db_parser = sub_parsers.add_parser(
+        "create-db",
+        help="Creates a new fdb and gribjump configuration.",
     )
+    create_db_parser.set_defaults(func=create_db_cmd)
+    create_db_parser.add_argument(
+        "path",
+        help="Path where the database will be created",
+        type=Path,
+        nargs="?",
+        default=Path.cwd(),
+    )
+
+    profile_parser = sub_parsers.add_parser(
+        "profile",
+        help="Run example computation on zarr or fdb zarr. "
+        "Requires an existing prepopulated database. "
+        "Create the database with 'create-db'.",
+    )
+    profile_parser.set_defaults(func=profile_cmd)
+    profile_parser.add_argument(
+        "source",
+        choices=["zarr", "fdb"],
+        default="fdb",
+        nargs="?",
+    )
+    profile_parser.add_argument(
+        "-d",
+        "--database",
+        type=Path,
+        help="Path to the database folder that contains configs, db_store and schema",
+        default=Path.cwd(),
+    )
+
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = parse_cli_args()
     if not args.verbose:
         be_quiet_stdout_and_stderr()
-    main(args)
+    logging.basicConfig(format="%(asctime)s %(message)s", stream=sys.stdout, level=logging.INFO)
+    global logger
+    logger = logging.getLogger(__name__)
+    logger.info("Begin")
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

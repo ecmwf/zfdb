@@ -253,10 +253,10 @@ def create_db_cmd(args):
 
 
 def profile_cmd(args):
-    fdb = open_database(args.database / "fdb_config.yaml")
-    gribjump = open_gribjump(args.database / "gribjump_config.yaml")
     dataset = example_datasets()[0]
     if args.source == "fdb":
+        fdb = open_database(args.database / "fdb_config.yaml")
+        gribjump = open_gribjump(args.database / "gribjump_config.yaml")
         store = zarr.open_group(
             zfdb.make_anemoi_dataset_like_view(
                 recipe=yaml.safe_load(dataset.recipe.read_text()),

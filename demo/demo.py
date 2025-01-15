@@ -270,10 +270,11 @@ def profile_cmd(args):
         logger.error(f"Unknown datasource {args.type}. Aborting.")
         sys.exit(-1)
 
-    t0 = time.perf_counter_ns()
-    compute_mean_per_field(store)
-    t1 = time.perf_counter_ns()
-    logger.info(f"Computation took {print_in_closest_unit(t1 - t0)}")
+    for _ in range(128):
+        t0 = time.perf_counter_ns()
+        compute_mean_per_field(store)
+        t1 = time.perf_counter_ns()
+        logger.info(f"Computation took {print_in_closest_unit(t1 - t0)}")
 
 
 def parse_cli_args():

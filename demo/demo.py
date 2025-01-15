@@ -11,9 +11,9 @@ from collections import namedtuple
 from dataclasses import KW_ONLY, dataclass
 from pathlib import Path
 
+import eccodes
 import numpy as np
 import pyfdb
-import pygrib
 import pygribjump
 import tqdm
 import yaml
@@ -130,9 +130,9 @@ def import_example_data(
     logger.info("Importing data into fdb")
     for dataset in datasets:
         logger.info(f"Archiving {dataset.grib_file.name}")
-        grib_file = pygrib.open(dataset.grib_file)
+        grib_file = eccodes.FileReader(dataset.grib_file)
         for idx, msg in enumerate(tqdm.tqdm(grib_file)):
-            fdb.archive(msg.tostring())
+            fdb.archive(msg.get_buffer())
             if (idx + 1) % flush_every_nth_message == 0:
                 fdb.flush()
         fdb.flush()
@@ -324,7 +324,9 @@ def main():
     args = parse_cli_args()
     if not args.verbose:
         be_quiet_stdout_and_stderr()
-    logging.basicConfig(format="%(asctime)s %(message)s", stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(
+        format="%(asctime)s %(message)s", stream=sys.stdout, level=logging.INFO
+    )
     global logger
     logger = logging.getLogger(__name__)
     logger.info("Begin")

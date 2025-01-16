@@ -23,6 +23,12 @@ import zfdb
 
 
 def be_quiet_stdout_and_stderr():
+    """
+    Redirects current stdout/stderr to /dev/null and then recreates stdout and
+    stderr. This lets libfdb and libgribjump continue to use the redirected
+    FDs, i.e. send their output to /dev/null while the rest of the application
+    can use stdout stderr normally.
+    """
     redirect_file = open("/dev/null")
 
     stdout_fd = sys.stdout.fileno()

@@ -1,0 +1,97 @@
+name: aifs-od-an-oper-0001-mars-o1280-2016-single_day-6h-v1
+
+description: Dataset from 2016 to 2016, single day,  from operational IFS, resolution o1280
+
+attribution: ECMWF
+
+licence: CC-BY-4.0
+
+dates:
+  start: '2024-11-01T00:00:00'
+  end: '2024-11-02T00:00:00'
+  frequency: 6h
+
+input:
+  join:
+  - mars:
+      class: od
+      type: an
+      expver: '0001'
+      grid: o1280
+      param:
+      - 10u
+      - 10v
+      - 2d
+      - 2t
+      - lsm
+      - msl
+      - sdor
+      - skt
+      - slor
+      - sp
+      - tcw
+      - z
+      levtype: sfc
+  - mars:
+      class: od
+      type: an
+      expver: '0001'
+      grid: o1280
+      levtype: pl
+      param:
+      - q
+      - t
+      - u
+      - v
+      - w
+      - z
+      level:
+      - 50
+      - 100
+      - 150
+      - 200
+      - 250
+      - 300
+      - 400
+      - 500
+      - 600
+      - 700
+      - 850
+      - 925
+      - 1000
+  - accumulations:
+      class: od
+      type: an
+      expver: '0001'
+      grid: o1280
+      param:
+      - cp
+      - tp
+  - constants:
+      template: ${input.join.0.mars}
+      param:
+      - cos_latitude
+      - cos_longitude
+      - sin_latitude
+      - sin_longitude
+      - cos_julian_day
+      - cos_local_time
+      - sin_julian_day
+      - sin_local_time
+      - cos_solar_zenith_angle
+
+output:
+  chunking:
+    dates: 1
+    ensembles: 1
+    variables: 33
+
+build:
+  group_by: 10
+
+common:
+  mars_request:
+    class: od
+    type: an
+    expver: '0001'
+    grid: o1280

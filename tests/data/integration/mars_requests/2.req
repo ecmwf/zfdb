@@ -1,0 +1,17 @@
+RETRIEVE,
+    CLASS      = OD,
+    TYPE       = AN,
+    STREAM     = OPER,
+    EXPVER     = 0001,
+    REPRES     = SH,
+    LEVTYPE    = PL,
+    LEVELIST   = 50/100/150/200/250/300/400/500/600/700/850/925/1000,
+    PARAM      = 133/130/131/132/135/129,
+    TIME       = 0000/0600/1200/1800,
+    STEP       = 0,
+    DOMAIN     = G,
+    TARGET     = 2.grb,
+    RESOL      = AUTO,
+    GRID       = 20/20,
+    DATE       = 20241101
+

@@ -1,0 +1,16 @@
+RETRIEVE,
+    CLASS      = OD,
+    TYPE       = FC,
+    STREAM     = OPER,
+    EXPVER     = 0001,
+    REPRES     = GG,
+    LEVTYPE    = SFC,
+    PARAM      = 143/228,
+    TIME       = 0000/1200,
+    STEP       = 6,
+    DOMAIN     = G,
+    TARGET     = 5.grb,
+    RESOL      = AUTO,
+    GRID       = 20/20,
+    DATE       = 20241101
+

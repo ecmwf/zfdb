@@ -55,5 +55,5 @@ def print_in_closest_unit(val_in_ns) -> str:
     units = ["ns", "μs", "ms", "s"]
     exp = int(math.log10(val_in_ns)) // 3
     if exp < len(units):
-        return f"{val_in_ns/10**(exp*3)}{units[exp]}"
+        return f"{val_in_ns / 10 ** (exp * 3)}{units[exp]}"
     raise ValueError

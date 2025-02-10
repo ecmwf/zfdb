@@ -5,9 +5,10 @@ Contains implementations of datasources and factory functions for crating them.
 
 import itertools
 import math
+import pathlib
 from functools import cache
 
-# import earthkit.data as ekd
+import eccodes
 import numpy as np
 import pyfdb
 import pygribjump
@@ -115,7 +116,7 @@ class NDarraySource(DataSource):
     @cache
     def __getitem__(self, key: tuple[int, ...]) -> bytes:
         # TODO(kkratz): Currently duplicates memory used because of the caced copy of bytes,
-        # but zarr dies not work on a memoryview
+        # but zarr does not work on a memoryview
         if len(key) != self._array.ndim:
             raise KeyError
         if any(x != 0 for x in key):
@@ -162,13 +163,20 @@ class FdbSource(DataSource):
 
         reference_mars_request = mars_requests[0].copy()
         date, time = np.datetime_as_string(start, unit="s").split("T")
-        reference_mars_request["date"] = date
+        reference_mars_request["date"] = date.replace("-", "")
         reference_mars_request["time"] = time.split(":")[0]
+        reference_mars_request.pop("grid", None)
 
-        # HACK
-        values_count = 40320
-        # query_result = ekd.from_source("mars", reference_mars_request)
-        # values_count = len(query_result[0].grid_points()[0])
+        first_field = next(self._fdb.list(reference_mars_request, keys=True))
+        msg = self._fdb.retrieve(first_field["keys"])
+        tmp_path = pathlib.Path("tmp.grib")
+        tmp_path.write_bytes(msg.read())
+
+        with open(tmp_path) as f:
+            gid = eccodes.codes_new_from_file(f, eccodes.CODES_PRODUCT_GRIB)
+            values_count = eccodes.codes_get(gid, "numberOfValues")
+            eccodes.codes_release(gid)
+        tmp_path.unlink()
 
         self._shape = (int(dates_count), fields_count, int(1), values_count)
         self._chunks = (1, fields_count, 1, values_count)

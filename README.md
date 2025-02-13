@@ -1,9 +1,40 @@
+<p align="center">
+  <img src="https://img.shields.io/badge/ESEE-Foundation-orange" alt="ESEE Foundation">
+  <a href="https://github.com/ecmwf/codex/blob/cookiecutter/Project%20Maturity/project-maturity.md">
+    <img src="https://img.shields.io/badge/Maturity-Emerging-violet" alt="Maturity Emerging">
+  </a>
+
+<a href="https://github.com/ecmwf/zfdb/actions/workflows/ci.yaml">
+    <img src="https://github.com/ecmwf/zfdb/actions/workflows/ci.yaml/badge.svg" alt="CI Status">
+  </a>
+
+<a href="https://codecov.io/gh/ecmwf/zfdb">
+    <img src="https://codecov.io/gh/ecmwf/zfdb/branch/develop/graph/badge.svg" alt="Code Coverage">
+  </a>
+
+  <a href="https://opensource.org/licenses/apache-2-0">
+    <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0">
+  </a>
+
+  <a href="https://github.com/ecmwf/zfdb/releases">
+    <img src="https://img.shields.io/github/v/release/ecmwf/zfdb?color=blue&label=Release&style=flat-square" alt="Latest Release">
+  </a>
+  <a href="https://zfdb.readthedocs.io/en/latest/?badge=latest">
+    <img src="https://readthedocs.org/projects/zfdb/badge/?version=latest" alt="Documentation Status">
+  </a>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> *
+  <a href="#installation">Installation</a> *
+  <a href="#contributors">Contributors</a> *
+  <a href="https://zfdb.readthedocs.io/en/latest/">Documentation</a>
+</p>
+
 # zfdb
 
 A zarr store implementation using [FDB](https://github.com/ecmwf/fdb) as an back-end.
 
-This project is ALPHA and will be experimental for the foreseeable future. 
-Interfaces and functionality are likely to change.
 
 ## How to run tests
 
@@ -36,3 +67,22 @@ export GRIBJUMP_DIR=<path to gribjump installation path>
 pip install -e .
 pytest -vv -s
 ```
+
+
+# Features
+
+Access FDB data as if was an Anemoi Dataset.
+
+# Quick Start
+
+
+# Installation
+
+Install from the Github repository directly:
+```
+python -m pip install https://github.com/ecmwf/zfdb
+```
+
+## License
+
+© 2025 ECMWF. All rights reserved.

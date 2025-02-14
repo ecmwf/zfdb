@@ -1,9 +1,17 @@
-# zfdb
+<p align="center">
+  <a href="https://github.com/ecmwf/codex/tree/main/Project%20Maturity#sandbox">
+    <img src="https://img.shields.io/badge/Maturity-Sandbox-yellow" alt="Maturity Sandbox">
+  </a>
+  <a href="https://opensource.org/licenses/apache-2-0">
+    <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0">
+  </a>
+</p>
+
+# ZarrFDB
 
 A zarr store implementation using [FDB](https://github.com/ecmwf/fdb) as an back-end.
 
-This project is ALPHA and will be experimental for the foreseeable future. 
-Interfaces and functionality are likely to change.
+This project is currently an experiment.
 
 ## How to run tests
 
@@ -36,3 +44,7 @@ export GRIBJUMP_DIR=<path to gribjump installation path>
 pip install -e .
 pytest -vv -s
 ```
+
+## License
+
+See [LICENSE](LICENSE)

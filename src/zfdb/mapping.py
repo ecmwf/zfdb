@@ -5,8 +5,9 @@ import numpy as np
 import pyfdb
 import pygribjump
 
-from .datasources import FdbSource, make_dates_source, make_lat_long_sources
+from .datasources import FdbForecastDataSource, FdbSource, make_dates_source
 from .error import ZfdbError
+from .request import Request
 from .zarr import FdbZarrArray, FdbZarrGroup
 
 
@@ -88,6 +89,31 @@ def extract_mars_requests_from_recipe(recipe: dict):
     inputs = recipe["input"]["join"]
     requests = [base_request | src["mars"] for src in inputs if "mars" in src]
     return start_date, end_date, frequency, requests
+
+
+def make_forecast_data_view(
+    *,
+    fdb: pyfdb.FDB | None = None,
+    gribjump: pygribjump.GribJump | None = None,
+    request: Request | list[Request],
+) -> FdbZarrMapping:
+    requests = request if isinstance(request, list) else [request]
+
+    if not fdb:
+        fdb = pyfdb.FDB()
+    if not gribjump:
+        gribjump = pygribjump.GribJump()
+
+    return FdbZarrMapping(
+        FdbZarrGroup(
+            children=[
+                FdbZarrArray(
+                    name="data",
+                    datasource=FdbForecastDataSource(fdb, gribjump, requests),
+                ),
+            ]
+        )
+    )
 
 
 def make_anemoi_dataset_like_view(

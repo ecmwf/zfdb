@@ -55,7 +55,7 @@ class Request:
         if self.level:
             return len(self.level) * len(self.params)
         return len(self.params)
-    
+
     @property
     def steps_count(self) -> int:
         return len(self.steps)
@@ -84,7 +84,7 @@ class Request:
 
     @staticmethod
     def _as_mars_date(t: np.datetime64) -> str:
-        return np.datetime_as_string(t, unit="D").replace("-","")
+        return np.datetime_as_string(t, unit="D").replace("-", "")
 
     @staticmethod
     def _time_in_day(t: np.datetime64) -> str:

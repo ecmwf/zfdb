@@ -325,9 +325,9 @@ def create_db_cmd(args):
 
 def profile_cmd(args):
     if args.source == "fdb-era5":
-        dataset = [ds for ds in example_datasets() if isinstance(ds, AnemoiExampleDataSet)][
-            0
-        ]
+        dataset = [
+            ds for ds in example_datasets() if isinstance(ds, AnemoiExampleDataSet)
+        ][0]
         fdb = open_database(args.database / "fdb_config.yaml")
         gribjump = open_gribjump(args.database / "gribjump_config.yaml")
         store = zarr.open_group(
@@ -338,9 +338,9 @@ def profile_cmd(args):
             )
         )
     elif args.source == "fdb-fc":
-        dataset = [ds for ds in example_datasets() if isinstance(ds, ForecastExampleDataSet)][
-            0
-        ]
+        dataset = [
+            ds for ds in example_datasets() if isinstance(ds, ForecastExampleDataSet)
+        ][0]
         fdb = open_database(args.database / "fdb_config.yaml")
         gribjump = open_gribjump(args.database / "gribjump_config.yaml")
         store = zarr.open_group(
@@ -351,9 +351,9 @@ def profile_cmd(args):
             )
         )
     elif args.source == "zarr-era5":
-        dataset = [ds for ds in example_datasets() if isinstance(ds, AnemoiExampleDataSet)][
-            0
-        ]
+        dataset = [
+            ds for ds in example_datasets() if isinstance(ds, AnemoiExampleDataSet)
+        ][0]
         store = zarr.open_group(dataset.anemoi_dataset, mode="r")
     else:
         logger.error(f"Unknown datasource {args.source}. Aborting.")

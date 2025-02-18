@@ -14,6 +14,7 @@ import pyfdb
 import pygribjump
 
 from .error import ZfdbError
+from .request import Request
 from .zarr import DataSource, DotZarrArray, DotZarrAttributes
 
 
@@ -127,6 +128,108 @@ class NDarraySource(DataSource):
         if len(key) != self._array.ndim:
             return False
         if any(x != 0 for x in key):
+            return False
+        return True
+
+
+class FdbForecastDataSource(DataSource):
+    """
+    Uses FDB as a backend.
+    Data is retrieved from FDB and assembled on each access.
+    """
+
+    def __init__(
+        self,
+        fdb: pyfdb.FDB,
+        gribjump: pygribjump.GribJump,
+        requests: list[Request],
+    ) -> None:
+        self._fdb = fdb
+        self._gribjump = gribjump
+        self._requests = requests
+        self._gj = pygribjump.GribJump()
+        steps_count = requests[0].steps_count
+        fields_count = sum([r.field_count for r in requests])
+
+        first_field = next(
+            self._fdb.list(requests[0].as_mars_request_for_step_index(0), keys=True)
+        )
+        msg = self._fdb.retrieve(first_field["keys"])
+        tmp_path = pathlib.Path("tmp.grib")
+        tmp_path.write_bytes(msg.read())
+
+        with open(tmp_path) as f:
+            gid = eccodes.codes_new_from_file(f, eccodes.CODES_PRODUCT_GRIB)
+            values_count = eccodes.codes_get(gid, "numberOfValues")
+            eccodes.codes_release(gid)
+        tmp_path.unlink()
+
+        self._shape = (int(steps_count), fields_count, int(1), values_count)
+        self._chunks = (1, fields_count, 1, values_count)
+        self._chunks_per_dimension = tuple(
+            [math.ceil(a / b) for (a, b) in zip(self._shape, self._chunks)]
+        )
+
+    def create_dot_zarr_array(self) -> DotZarrArray:
+        return DotZarrArray(
+            shape=self._shape,
+            chunks=self._chunks,
+            dtype="float32",
+            order="C",
+        )
+
+    def create_dot_zarr_attrs(self) -> DotZarrAttributes:
+        def to_name(keys) -> str:
+            if keys["levtype"] == "pl":
+                return f"{keys['param']}_{keys['levelist']}"
+            return keys["param"]
+
+        listing = []
+        for request in self._requests:
+            listing += [
+                to_name(i["keys"])
+                for i in self._fdb.list(
+                    request.as_mars_request_for_step_index(0), keys=True
+                )
+            ]
+
+        return DotZarrAttributes(variables=listing)
+
+    def chunks(self) -> tuple[int, ...]:
+        return self._chunks_per_dimension
+
+    def __getitem__(self, key: tuple[int, ...]) -> bytes:
+        if len(key) != len(self._shape):
+            raise KeyError
+        if any(
+            k < 0 or k >= limit for k, limit in zip(key, self._chunks_per_dimension)
+        ):
+            raise KeyError
+        step_index = key[0]
+        polyrequests = []
+        for request in self._requests:
+            polyrequests.append(
+                [
+                    (i["keys"], [(0, self._shape[3])])
+                    for i in self._fdb.list(
+                        request.as_mars_request_for_step_index(step_index), keys=True
+                    )
+                ]
+            )
+        gj_results = [
+            self._gribjump.extract(polyrequest) for polyrequest in polyrequests
+        ]
+        buffer = np.zeros(self._chunks, dtype="float32")
+        for idx, field in enumerate(itertools.chain.from_iterable(gj_results)):
+            buffer[0, idx, 0, :] = field[0][0][0]
+        return buffer.tobytes()
+
+    def __contains__(self, key: tuple[int, ...]) -> bool:
+        if len(key) != len(self._shape):
+            return False
+        if any(
+            k < 0 or k >= limit for k, limit in zip(key, self._chunks_per_dimension)
+        ):
             return False
         return True
 

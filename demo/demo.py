@@ -61,19 +61,27 @@ def print_in_closest_unit(val_in_ns) -> str:
 
 
 @dataclass(frozen=True)
-class ExampleDataSet:
+class AnemoiExampleDataSet:
     _: KW_ONLY
     name: str
     grib_file: Path
     recipe: Path
-    anemoi_dataset: Path | None = None
+    anemoi_dataset: Path
 
 
-def example_datasets() -> list[ExampleDataSet]:
+@dataclass(frozen=True)
+class ForecastExampleDataSet:
+    _: KW_ONLY
+    name: str
+    grib_file: Path
+    requests: list[zfdb.Request]
+
+
+def example_datasets() -> list[AnemoiExampleDataSet | ForecastExampleDataSet]:
     data_location = Path(__file__).parent / "demo-data"
 
     return [
-        ExampleDataSet(
+        AnemoiExampleDataSet(
             name="aifs-ea-an-oper-0001-mars-o96-2024-2024-6h-v1-january",
             grib_file=data_location
             / "aifs-ea-an-oper-0001-mars-o96-2024-2024-6h-v1-january.grib",
@@ -81,6 +89,52 @@ def example_datasets() -> list[ExampleDataSet]:
             / "aifs-ea-an-oper-0001-mars-o96-2024-2024-6h-v1-january.yaml",
             anemoi_dataset=data_location
             / "aifs-ea-an-oper-0001-mars-o96-2024-2024-6h-v1-january.zarr",
+        ),
+        ForecastExampleDataSet(
+            name="Forecast data example",
+            grib_file=data_location / "fc_example.grib",
+            requests=[
+                zfdb.Request(
+                    levtype="sfc",
+                    steps=list(range(0, 48)),
+                    date_time=np.datetime64("2025-01-01T00:00:00"),
+                    params=[
+                        "165",
+                        "166",
+                        "168",
+                        "167",
+                        "172",
+                        "151",
+                        "160",
+                        "235",
+                        "163",
+                        "134",
+                        "136",
+                        "129",
+                    ],
+                ),
+                zfdb.Request(
+                    levtype="pl",
+                    level=[
+                        "50",
+                        "100",
+                        "150",
+                        "200",
+                        "250",
+                        "300",
+                        "400",
+                        "500",
+                        "600",
+                        "700",
+                        "850",
+                        "925",
+                        "1000",
+                    ],
+                    steps=list(range(0, 48)),
+                    date_time=np.datetime64("2025-01-01T00:00:00"),
+                    params=["133", "130", "131", "132", "135", "129"],
+                ),
+            ],
         ),
     ]
 
@@ -131,7 +185,9 @@ def open_database(config_path: Path):
 
 
 def import_example_data(
-    fdb, datasets: list[ExampleDataSet], flush_every_nth_message=256
+    fdb,
+    datasets: list[AnemoiExampleDataSet | ForecastExampleDataSet],
+    flush_every_nth_message=256,
 ):
     logger.info("Importing data into fdb")
     for dataset in datasets:
@@ -145,7 +201,7 @@ def import_example_data(
 
 
 def create_callgraph(
-    fdb: pyfdb.FDB, gribjump: pygribjump.GribJump, dataset: ExampleDataSet
+    fdb: pyfdb.FDB, gribjump: pygribjump.GribJump, dataset: AnemoiExampleDataSet
 ):
     print("Creating profile_stats.txt with python profiling information.")
     fdb_view = zarr.open_group(
@@ -163,7 +219,7 @@ def create_callgraph(
 
 
 def demo_performance_comparison(
-    fdb: pyfdb.FDB, gribjump: pygribjump.GribJump, dataset: ExampleDataSet
+    fdb: pyfdb.FDB, gribjump: pygribjump.GribJump, dataset: AnemoiExampleDataSet
 ) -> None:
     if not dataset.anemoi_dataset:
         raise Exception(
@@ -214,7 +270,7 @@ def demo_performance_comparison(
 
 
 def demo_aggeration(
-    fdb: pyfdb.FDB, gribjump: pygribjump.GribJump, dataset: ExampleDataSet
+    fdb: pyfdb.FDB, gribjump: pygribjump.GribJump, dataset: AnemoiExampleDataSet
 ) -> None:
     print(f"Running aggregation example on {dataset.name}")
     print("Opening fdb view")
@@ -230,6 +286,7 @@ def demo_aggeration(
     print(
         f"Computing means for {len(variable_names)} variables on {fdb_view['data'].shape[0]} dates with {fdb_view['data'].shape[3]} values per field"
     )
+    print(fdb_view["data"])
     for sample in tqdm.tqdm(fdb_view["data"]):
         means_per_variable = np.mean(sample, axis=2).squeeze()
         means_per_sample.append(means_per_variable)
@@ -259,8 +316,10 @@ def create_db_cmd(args):
 
 
 def profile_cmd(args):
-    dataset = example_datasets()[0]
-    if args.source == "fdb":
+    if args.source == "fdb-era5":
+        dataset = [ds for ds in example_datasets() if isinstance(ds, AnemoiExampleDataSet)][
+            0
+        ]
         fdb = open_database(args.database / "fdb_config.yaml")
         gribjump = open_gribjump(args.database / "gribjump_config.yaml")
         store = zarr.open_group(
@@ -270,10 +329,26 @@ def profile_cmd(args):
                 gribjump=gribjump,
             )
         )
-    elif args.source == "zarr":
+    elif args.source == "fdb-fc":
+        dataset = [ds for ds in example_datasets() if isinstance(ds, ForecastExampleDataSet)][
+            0
+        ]
+        fdb = open_database(args.database / "fdb_config.yaml")
+        gribjump = open_gribjump(args.database / "gribjump_config.yaml")
+        store = zarr.open_group(
+            zfdb.make_forecast_data_view(
+                request=dataset.requests,
+                fdb=fdb,
+                gribjump=gribjump,
+            )
+        )
+    elif args.source == "zarr-era5":
+        dataset = [ds for ds in example_datasets() if isinstance(ds, AnemoiExampleDataSet)][
+            0
+        ]
         store = zarr.open_group(dataset.anemoi_dataset, mode="r")
     else:
-        logger.error(f"Unknown datasource {args.type}. Aborting.")
+        logger.error(f"Unknown datasource {args.source}. Aborting.")
         sys.exit(-1)
 
     for _ in range(128):
@@ -312,8 +387,8 @@ def parse_cli_args():
     profile_parser.set_defaults(func=profile_cmd)
     profile_parser.add_argument(
         "source",
-        choices=["zarr", "fdb"],
-        default="fdb",
+        choices=["zarr-era5", "fdb-era5", "fdb-fc"],
+        default="fdb-era5",
         nargs="?",
     )
     profile_parser.add_argument(

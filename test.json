@@ -1,0 +1,25 @@
+{
+  "requests": [
+    {
+      "cls": "od",
+      "stream": "oper",
+      "expver": 1,
+      "typ": "fc",
+      "levtype":  "sfc",
+      "date_time": "2025-01-01T00:00:00",
+      "steps": [0, 1, 2, 3, 4],
+      "params": ["165", "166"]
+    },
+    {
+      "cls": "od",
+      "stream": "oper",
+      "expver": 1,
+      "typ": "fc",
+      "levtype":  "pl",
+      "level":  ["50", "100"],
+      "date_time": "2025-01-01T00:00:00",
+      "steps": [0, 1, 2, 3, 4],
+      "params": ["133", "130"]
+    }
+  ]
+}

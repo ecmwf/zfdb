@@ -14,8 +14,8 @@ if __name__ == "__main__":
     response = requests.post(url, headers=headers, data=json.dumps(json_request))
 
     print(response.content)
-    hash =  response.json()["hash"]
-    store = fsspec.get_mapper(f'http://localhost:5000/get/zarr/{hash}')
+    hash = response.json()["hash"]
+    store = fsspec.get_mapper(f"http://localhost:5000/get/zarr/{hash}")
     z_grp = zarr.open(store, mode="r")
 
     print(z_grp.attrs)
@@ -23,4 +23,4 @@ if __name__ == "__main__":
     for x in z_grp.attrs.items():
         print(x)
 
-    print(z_grp["data"][0,0,0,0:30])
+    print(z_grp["data"][0, 0, 0, 0:30])

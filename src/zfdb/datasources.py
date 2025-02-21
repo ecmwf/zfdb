@@ -167,10 +167,14 @@ class FdbForecastDataSource(DataSource):
 
     def _query_number_of_values_in_field(self) -> int:
         try:
-            res_iter = self._fdb.list(self._requests[0].as_mars_request_for_step_index(0), keys=True)
+            res_iter = self._fdb.list(
+                self._requests[0].as_mars_request_for_step_index(0), keys=True
+            )
             first_field = next(res_iter)
         except StopIteration:
-            raise ZfdbError("No data found for first request / first step to establish size of fields.")
+            raise ZfdbError(
+                "No data found for first request / first step to establish size of fields."
+            )
 
         # TODO(kkratz): What errors can be emited from retrieve?
         msg = self._fdb.retrieve(first_field["keys"])
@@ -182,7 +186,9 @@ class FdbForecastDataSource(DataSource):
             values_count = eccodes.codes_get(gid, "numberOfValues")
             eccodes.codes_release(gid)
             if not isinstance(values_count, int):
-                raise ZfdbError("Grib message does not contain 'numberOfValues', cannot establish size of fields")
+                raise ZfdbError(
+                    "Grib message does not contain 'numberOfValues', cannot establish size of fields"
+                )
         tmp_path.unlink()
         return values_count
 

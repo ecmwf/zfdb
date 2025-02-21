@@ -70,16 +70,20 @@ def process_json():
 
     return to_response(hashed_request)
 
+
 @app.route("/get/zarr/<hash>", methods=["GET"])
 @app.route("/get/zarr/<hash>/<root_grp>", methods=["GET"])
 @app.route("/get/zarr/<hash>/<root_grp>/<group_lvl_one>", methods=["GET"])
-@app.route( "/get/zarr/<hash>/<root_grp>/<group_lvl_one>/<group_lvl_two>", methods=["GET"])
+@app.route(
+    "/get/zarr/<hash>/<root_grp>/<group_lvl_one>/<group_lvl_two>", methods=["GET"]
+)
 def retrieve_zarr(hash, root_grp=None, group_lvl_one=None, group_lvl_two=None):
-
     print("Routes", hash, root_grp, group_lvl_one, group_lvl_two)
     print(view_hashes)
 
-    zarr_path = "/".join([frag for frag in [root_grp, group_lvl_one, group_lvl_two] if frag])
+    zarr_path = "/".join(
+        [frag for frag in [root_grp, group_lvl_one, group_lvl_two] if frag]
+    )
 
     try:
         mapping = view_hashes[int(hash)]

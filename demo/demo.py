@@ -199,13 +199,19 @@ def import_example_data(
 ):
     logger.info("Importing data into fdb")
     for dataset in datasets:
-        logger.info(f"Archiving {dataset.grib_file.name}")
-        grib_file = eccodes.FileReader(dataset.grib_file)
-        for idx, msg in enumerate(tqdm.tqdm(grib_file)):
-            fdb.archive(msg.get_buffer())
-            if (idx + 1) % flush_every_nth_message == 0:
-                fdb.flush()
-        fdb.flush()
+        import_grib_file(
+            fdb, dataset.grib_file.expanduser().resolve(), flush_every_nth_message
+        )
+
+
+def import_grib_file(fdb, grib_file, flush_every_nth_message=256):
+    logger.info(f"Archiving {grib_file}")
+    grib_file = eccodes.FileReader(grib_file)
+    for idx, msg in enumerate(tqdm.tqdm(grib_file)):
+        fdb.archive(msg.get_buffer())
+        if (idx + 1) % flush_every_nth_message == 0:
+            fdb.flush()
+    fdb.flush()
 
 
 def create_callgraph(
@@ -318,9 +324,18 @@ def compute_mean_per_field(store) -> None:
 def create_db_cmd(args):
     logger.info("Creating demo database")
     configs = create_database(Path(__file__).parent / "demo-data", args.path)
+    if not args.empty:
+        fdb = open_database(configs.fdb_config_path)
+        datasets = example_datasets()
+        import_example_data(fdb, datasets)
+
+
+def import_data_cmd(args):
+    logger.info("Importing data into demo database")
+    configs = create_database(Path(__file__).parent / "demo-data", args.path)
     fdb = open_database(configs.fdb_config_path)
-    datasets = example_datasets()
-    import_example_data(fdb, datasets)
+    for p in args.path:
+        import_grib_file(fdb, p.expanduser().resolve())
 
 
 def profile_cmd(args):
@@ -384,6 +399,24 @@ def parse_cli_args():
         type=Path,
         nargs="?",
         default=Path.cwd(),
+    )
+    create_db_parser.add_argument(
+        "--empty",
+        help="Do not import example data, just create an empty database",
+        action="store_true",
+    )
+
+    import_data_parser = sub_parsers.add_parser(
+        "import-data",
+        help="Import data into FDB, can point to a single grib file or a directory",
+    )
+    import_data_parser.set_defaults(func=import_data_cmd)
+    create_db_parser.add_argument(
+        "path",
+        help="Path from where to read grib file or files",
+        type=Path,
+        nargs="+",
+        required=True,
     )
 
     profile_parser = sub_parsers.add_parser(

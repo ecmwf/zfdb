@@ -409,7 +409,7 @@ def parse_cli_args():
         help="Import data into FDB, can point to a single grib file or a directory",
     )
     import_data_parser.set_defaults(func=import_data_cmd)
-    create_db_parser.add_argument(
+    import_data_parser.add_argument(
         "path",
         help="Path from where to read grib file or files",
         type=Path,

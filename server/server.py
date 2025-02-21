@@ -68,7 +68,7 @@ def retrieve_zarr(hash, zarr_path):
     try:
         content = mapping[zarr_path]
     except KeyError:
-        return Response(response="", status=404)
+        return Response(response=f"Didn't find {zarr_path} for mapping of hash {int(hash)}", status=404)
 
     return Response(response=content, status=200)
 

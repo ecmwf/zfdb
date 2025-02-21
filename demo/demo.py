@@ -414,7 +414,6 @@ def parse_cli_args():
         help="Path from where to read grib file or files",
         type=Path,
         nargs="+",
-        required=True,
     )
 
     profile_parser = sub_parsers.add_parser(

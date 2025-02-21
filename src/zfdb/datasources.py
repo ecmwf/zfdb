@@ -156,12 +156,23 @@ class FdbForecastDataSource(DataSource):
         self._gribjump = gribjump
         self._requests = requests
         self._gj = pygribjump.GribJump()
-        steps_count = requests[0].steps_count
-        fields_count = sum([r.field_count for r in requests])
-
-        first_field = next(
-            self._fdb.list(requests[0].as_mars_request_for_step_index(0), keys=True)
+        steps_count = self._requests[0].steps_count
+        fields_count = sum([r.field_count for r in self._requests])
+        values_count = self._query_number_of_values_in_field()
+        self._shape = (int(steps_count), fields_count, int(1), int(values_count))
+        self._chunks = (1, fields_count, 1, values_count)
+        self._chunks_per_dimension = tuple(
+            [math.ceil(a / b) for (a, b) in zip(self._shape, self._chunks)]
         )
+
+    def _query_number_of_values_in_field(self) -> int:
+        try:
+            res_iter = self._fdb.list(self._requests[0].as_mars_request_for_step_index(0), keys=True)
+            first_field = next(res_iter)
+        except StopIteration:
+            raise ZfdbError("No data found for first request / first step to establish size of fields.")
+
+        # TODO(kkratz): What errors can be emited from retrieve?
         msg = self._fdb.retrieve(first_field["keys"])
         tmp_path = pathlib.Path("tmp.grib")
         tmp_path.write_bytes(msg.read())
@@ -170,13 +181,10 @@ class FdbForecastDataSource(DataSource):
             gid = eccodes.codes_new_from_file(f, eccodes.CODES_PRODUCT_GRIB)
             values_count = eccodes.codes_get(gid, "numberOfValues")
             eccodes.codes_release(gid)
+            if not isinstance(values_count, int):
+                raise ZfdbError("Grib message does not contain 'numberOfValues', cannot establish size of fields")
         tmp_path.unlink()
-
-        self._shape = (int(steps_count), fields_count, int(1), values_count)
-        self._chunks = (1, fields_count, 1, values_count)
-        self._chunks_per_dimension = tuple(
-            [math.ceil(a / b) for (a, b) in zip(self._shape, self._chunks)]
-        )
+        return values_count
 
     def create_dot_zarr_array(self) -> DotZarrArray:
         return DotZarrArray(

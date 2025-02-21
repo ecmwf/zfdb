@@ -1,17 +1,41 @@
+#!/usr/bin/env python
+
 import json
-import pathlib
+
+import fsspec
 import requests
 import zarr
-import fsspec
+
+view = {
+    "requests": [
+        {
+            "cls": "od",
+            "stream": "oper",
+            "expver": 1,
+            "typ": "fc",
+            "levtype": "sfc",
+            "date_time": "2025-01-01T00:00:00",
+            "steps": [0, 1, 2, 3, 4],
+            "params": ["165", "166"],
+        },
+        {
+            "cls": "od",
+            "stream": "oper",
+            "expver": 1,
+            "typ": "fc",
+            "levtype": "pl",
+            "level": ["50", "100"],
+            "date_time": "2025-01-01T00:00:00",
+            "steps": [0, 1, 2, 3, 4],
+            "params": ["133", "130"],
+        },
+    ]
+}
 
 if __name__ == "__main__":
-    json_request = None
-    with open(pathlib.Path("./test.json"), "r") as request_file:
-        json_request = json.loads(request_file.read())
-
     url = "http://localhost:5000/create"
     headers = {"Content-Type": "application/json"}
-    response = requests.post(url, headers=headers, data=json.dumps(json_request))
+    response = requests.post(url, headers=headers, data=json.dumps(view))
 
     print(response.content)
     hash = response.json()["hash"]

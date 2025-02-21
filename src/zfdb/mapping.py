@@ -106,6 +106,10 @@ def make_forecast_data_view(
     request: Request | list[Request],
 ) -> FdbZarrMapping:
     requests = request if isinstance(request, list) else [request]
+    if len(requests) > 1 and not all(
+        map(lambda x: x[0].matches_on_time_axis(x[1]), zip(requests[:-1], requests[1:]))
+    ):
+        raise ZfdbError("Requests are not matching on time axis")
 
     if not fdb:
         fdb = pyfdb.FDB()

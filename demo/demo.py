@@ -335,7 +335,7 @@ def import_data_cmd(args):
     fdb = open_database(fdb_config_path)
     for p in args.path:
         p = p.expanduser().resolve()
-        if p.is_directory():
+        if p.is_dir():
             for f in p.iterdir():
                 import_grib_file(fdb, f)
 

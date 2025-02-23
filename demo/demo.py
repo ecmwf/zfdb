@@ -334,7 +334,13 @@ def import_data_cmd(args):
     fdb_config_path = args.database / "fdb_config.yaml"
     fdb = open_database(fdb_config_path)
     for p in args.path:
-        import_grib_file(fdb, p.expanduser().resolve())
+        p = p.expanduser().resolve()
+        if p.is_directory():
+            for f in p.iterdir():
+                import_grib_file(fdb, f)
+
+        elif p.is_file():
+            import_grib_file(fdb, p)
 
 
 def profile_cmd(args):

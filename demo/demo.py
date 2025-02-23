@@ -151,6 +151,7 @@ def create_database(demo_data_path: Path, path):
     if db_store_path.exists():
         shutil.rmtree(db_store_path)
     db_store_path.mkdir(parents=True, exist_ok=True)
+
     schema_path = path / "schema"
     shutil.copy(demo_data_path / "schema", schema_path)
     fdb_config = {
@@ -330,8 +331,8 @@ def create_db_cmd(args):
 
 def import_data_cmd(args):
     logger.info("Importing data into demo database")
-    configs = create_database(Path(__file__).parent / "demo-data", args.path)
-    fdb = open_database(configs.fdb_config_path)
+    fdb_config_path = args.database / "fdb_config.yaml"
+    fdb = open_database(fdb_config_path)
     for p in args.path:
         import_grib_file(fdb, p.expanduser().resolve())
 
@@ -409,6 +410,13 @@ def parse_cli_args():
         help="Import data into FDB, can point to a single grib file or a directory",
     )
     import_data_parser.set_defaults(func=import_data_cmd)
+    import_data_parser.add_argument(
+        "-d",
+        "--database",
+        type=Path,
+        help="Path to the database folder that contains configs, db_store and schema",
+        default=Path.cwd(),
+    )
     import_data_parser.add_argument(
         "path",
         help="Path from where to read grib file or files",

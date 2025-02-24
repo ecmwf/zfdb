@@ -399,13 +399,12 @@ def simulate_training_cmd(args):
 
     data = store["data"]
     dates = data.shape[0]
-    base_date_access_order = list(range(0,dates-2))
+    base_date_access_order = list(range(0, dates - 2))
 
     for idx in tqdm.tqdm(base_date_access_order):
         np.mean(data[idx], axis=2).squeeze()
-        np.mean(data[idx+1], axis=2).squeeze()
-        np.mean(data[idx+2], axis=2).squeeze()
-
+        np.mean(data[idx + 1], axis=2).squeeze()
+        np.mean(data[idx + 2], axis=2).squeeze()
 
 
 def parse_cli_args():
@@ -478,7 +477,11 @@ def parse_cli_args():
         "simulate-training", help="Simulates data access similar to anemoi training"
     )
     simulate_training_parser.set_defaults(func=simulate_training_cmd)
-    simulate_training_parser.add_argument("recipe", help="path to anemoi like recipe.yaml describing the training data")
+    simulate_training_parser.add_argument(
+        "recipe",
+        help="path to anemoi like recipe.yaml describing the training data",
+        type=Path,
+    )
     simulate_training_parser.add_argument(
         "-d",
         "--database",

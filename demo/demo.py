@@ -386,8 +386,32 @@ def profile_cmd(args):
         logger.info(f"Computation took {print_in_closest_unit(t1 - t0)}")
 
 
+def simulate_training_cmd(args):
+    fdb = open_database(args.database / "fdb_config.yaml")
+    gribjump = open_gribjump(args.database / "gribjump_config.yaml")
+    store = zarr.open_group(
+        zfdb.make_anemoi_dataset_like_view(
+            recipe=yaml.safe_load(args.recipe.read_text()),
+            fdb=fdb,
+            gribjump=gribjump,
+        )
+    )
+
+    data = store["data"]
+    dates = data.shape[0]
+    base_date_access_order = list(range(0,dates-2))
+
+    for idx in tqdm.tqdm(base_date_access_order):
+        np.mean(data[idx], axis=2).squeeze()
+        np.mean(data[idx+1], axis=2).squeeze()
+        np.mean(data[idx+2], axis=2).squeeze()
+
+
+
 def parse_cli_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "-v", "--verbose", help="Enables verbose output", action="store_true"
     )
@@ -444,6 +468,18 @@ def parse_cli_args():
         nargs="?",
     )
     profile_parser.add_argument(
+        "-d",
+        "--database",
+        type=Path,
+        help="Path to the database folder that contains configs, db_store and schema",
+        default=Path.cwd(),
+    )
+    simulate_training_parser = sub_parsers.add_parser(
+        "simulate-training", help="Simulates data access similar to anemoi training"
+    )
+    simulate_training_parser.set_defaults(func=simulate_training_cmd)
+    simulate_training_parser.add_argument("recipe", help="path to anemoi like recipe.yaml describing the training data")
+    simulate_training_parser.add_argument(
         "-d",
         "--database",
         type=Path,

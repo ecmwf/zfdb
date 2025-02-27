@@ -414,6 +414,19 @@ def simulate_training_cmd(args):
         np.mean(data[idx + 1], axis=2).squeeze()
         np.mean(data[idx + 2], axis=2).squeeze()
 
+def simulate_training_cmd2(args):
+    store = zarr.open_group(args.zarr_store)
+
+    data = store["data"]
+    dates = data.shape[0]
+    base_date_access_order = list(range(0, dates - 2))
+
+    for idx in tqdm.tqdm(base_date_access_order, disable=not args.progress):
+        logger.info("Processing chunks[{idx}, {idx+1}, {idx+2}]")
+        np.mean(data[idx], axis=2).squeeze()
+        np.mean(data[idx + 1], axis=2).squeeze()
+        np.mean(data[idx + 2], axis=2).squeeze()
+
 
 def parse_cli_args():
     parser = argparse.ArgumentParser(
@@ -485,7 +498,7 @@ def parse_cli_args():
         default=Path.cwd(),
     )
     simulate_training_parser = sub_parsers.add_parser(
-        "simulate-training", help="Simulates data access similar to anemoi training"
+        "simulate-training-zfdb", help="Simulates data access similar to anemoi training"
     )
     simulate_training_parser.set_defaults(func=simulate_training_cmd)
     simulate_training_parser.add_argument(
@@ -499,6 +512,16 @@ def parse_cli_args():
         type=Path,
         help="Path to the database folder that contains configs, db_store and schema",
         default=Path.cwd(),
+    )
+    
+    simulate_training_parser2 = sub_parsers.add_parser(
+        "simulate-training-anemoi-dataset", help="Simulates data access similar to anemoi training"
+    )
+    simulate_training_parser2.set_defaults(func=simulate_training2_cmd)
+    simulate_training_parser2.add_argument(
+        "zarr-store",
+        help="path to .zarr store",
+        type=Path,
     )
 
     return parser.parse_args()

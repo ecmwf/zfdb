@@ -409,7 +409,7 @@ def simulate_training_cmd(args):
     base_date_access_order = list(range(0, dates - 2))
 
     for idx in tqdm.tqdm(base_date_access_order, disable=not args.progress):
-        logger.info("Processing chunks[{idx}, {idx+1}, {idx+2}]")
+        logger.info(f"Processing chunks[{idx}, {idx+1}, {idx+2}]")
         np.mean(data[idx], axis=2).squeeze()
         np.mean(data[idx + 1], axis=2).squeeze()
         np.mean(data[idx + 2], axis=2).squeeze()
@@ -422,7 +422,7 @@ def simulate_training_cmd2(args):
     base_date_access_order = list(range(0, dates - 2))
 
     for idx in tqdm.tqdm(base_date_access_order, disable=not args.progress):
-        logger.info("Processing chunks[{idx}, {idx+1}, {idx+2}]")
+        logger.info(f"Processing chunks[{idx}, {idx+1}, {idx+2}]")
         np.mean(data[idx], axis=2).squeeze()
         np.mean(data[idx + 1], axis=2).squeeze()
         np.mean(data[idx + 2], axis=2).squeeze()

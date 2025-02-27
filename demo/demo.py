@@ -194,19 +194,23 @@ def open_database(config_path: Path):
 def import_example_data(
     fdb,
     datasets: list[AnemoiExampleDataSet | ForecastExampleDataSet],
+    show_progress: bool,
     flush_every_nth_message=256,
 ):
     logger.info("Importing data into fdb")
     for dataset in datasets:
         import_grib_file(
-            fdb, dataset.grib_file.expanduser().resolve(), flush_every_nth_message
+            fdb,
+            dataset.grib_file.expanduser().resolve(),
+            show_progress,
+            flush_every_nth_message,
         )
 
 
-def import_grib_file(fdb, grib_file, flush_every_nth_message=256):
+def import_grib_file(fdb, grib_file, show_progress, flush_every_nth_message=256):
     logger.info(f"Archiving {grib_file}")
     grib_file = eccodes.FileReader(grib_file)
-    for idx, msg in enumerate(tqdm.tqdm(grib_file)):
+    for idx, msg in enumerate(tqdm.tqdm(grib_file, disable=not show_progress)):
         fdb.archive(msg.get_buffer())
         if (idx + 1) % flush_every_nth_message == 0:
             fdb.flush()
@@ -232,7 +236,10 @@ def create_callgraph(
 
 
 def demo_performance_comparison(
-    fdb: pyfdb.FDB, gribjump: pygribjump.GribJump, dataset: AnemoiExampleDataSet
+    fdb: pyfdb.FDB,
+    gribjump: pygribjump.GribJump,
+    dataset: AnemoiExampleDataSet,
+    show_progress: bool,
 ) -> None:
     if not dataset.anemoi_dataset:
         raise Exception(
@@ -253,7 +260,7 @@ def demo_performance_comparison(
 
     def time_compute_field_sum_full_time_range(stores, idx, iterations):
         timings = [[] for _ in stores]
-        for _ in tqdm.tqdm(range(iterations)):
+        for _ in tqdm.tqdm(range(iterations), disable=not show_progress):
             for idx, data in enumerate(stores):
                 t0 = time.perf_counter_ns()
                 for chunk_idx in range(data["data"].chunks[0]):
@@ -326,7 +333,7 @@ def create_db_cmd(args):
     if not args.empty:
         fdb = open_database(configs.fdb_config_path)
         datasets = example_datasets()
-        import_example_data(fdb, datasets)
+        import_example_data(fdb, datasets, args.progress)
 
 
 def import_data_cmd(args):
@@ -337,10 +344,10 @@ def import_data_cmd(args):
         p = p.expanduser().resolve()
         if p.is_dir():
             for f in p.iterdir():
-                import_grib_file(fdb, f)
+                import_grib_file(fdb, f, args.progress)
 
         elif p.is_file():
-            import_grib_file(fdb, p)
+            import_grib_file(fdb, p, args.progress)
 
 
 def profile_cmd(args):
@@ -413,6 +420,9 @@ def parse_cli_args():
     )
     parser.add_argument(
         "-v", "--verbose", help="Enables verbose output", action="store_true"
+    )
+    parser.add_argument(
+        "-p", "--progress", help="Show progress output", action="store_true"
     )
     sub_parsers = parser.add_subparsers(dest="cmd", required=True)
 

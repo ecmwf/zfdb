@@ -40,7 +40,7 @@ def extract_syscalls(con, handlers, show_progress):
             )
             for row in tqdm(
                 res,
-                description=f"Extracting {handler.call} ",
+                desc=f"Extracting {handler.call} ",
                 disable=not show_progress,
             ):
                 args_str = row[-1]
@@ -61,7 +61,7 @@ def command_extract_io_events(args):
     con = open_database(args.database)
     handlers = make_handlers()
     create_tables(con, handlers)
-    extract_syscalls(con, handlers, args.show_progress)
+    extract_syscalls(con, handlers, args.progress)
 
 
 class SyscallHandler:
@@ -103,12 +103,17 @@ class SyscallHandler:
 
 def make_handlers() -> list[SyscallHandler]:
     return [
-        SyscallHandler(
-            call="openat", expected_args=["path", "flags"], regex=r"^.*\"(.*)\", (.*)$"
-        ),
-        SyscallHandler(
-            call="read",
-            expected_args=["path", "size"],
-            regex=r"^.*\<(.*)\>,.*, +(\d+)$",
-        ),
+        SyscallHandler(call=c, expected_args=a, regex=r)
+        for (c, a, r) in [
+            ("openat", ["path", "flags"], r"^.*\"(.*)\", (.*)$"),
+            ("read", ["path", "size"], r"^.*\<(.*)\>,.*, +(\d+)$"),
+            ("access", ["path", "flags"], r"^.*\"(.*)\", (.*)$"),
+            ("close", ["path"], r"^.*\<(.*)\>.*$"),
+            ("flock", ["path", "flags"], r"^.*\<(.*)\>, (.*)$"),
+            ("fstat", ["path"], r"^.*\<(.*)\>.*$"),
+            ("getdents64", ["path"], r"^.*\<(.*)\>.*$"),
+            ("lseek", ["path", "offset", "whence"], r"^.*\<(.*)\>, +(-?\d+), +(.+)$"),
+            ("lstat", ["path"], r"^.*\"(.*)\".*$"),
+            ("stat", ["path"], r"^.*\"(.*)\".*$"),
+        ]
     ]

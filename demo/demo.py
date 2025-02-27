@@ -415,7 +415,7 @@ def simulate_training_cmd(args):
         np.mean(data[idx + 2], axis=2).squeeze()
 
 def simulate_training_cmd2(args):
-    store = zarr.open_group(args.zarr_store)
+    store = zarr.open_group(args.zstore)
 
     data = store["data"]
     dates = data.shape[0]
@@ -519,7 +519,7 @@ def parse_cli_args():
     )
     simulate_training_parser2.set_defaults(func=simulate_training_cmd2)
     simulate_training_parser2.add_argument(
-        "zarr-store",
+        "zstore",
         help="path to .zarr store",
         type=Path,
     )

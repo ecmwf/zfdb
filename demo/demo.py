@@ -421,7 +421,7 @@ def simulate_training_cmd2(args):
 
     data = store["data"]
     dates = data.shape[0]
-    base_date_access_order = list(range(0, dates - 2))
+    base_date_access_order = list(range(0, dates - 2))[:31*4]
     random.shuffle(base_date_access_order)
 
     for idx in tqdm.tqdm(base_date_access_order, disable=not args.progress):

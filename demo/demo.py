@@ -517,7 +517,7 @@ def parse_cli_args():
     simulate_training_parser2 = sub_parsers.add_parser(
         "simulate-training-anemoi-dataset", help="Simulates data access similar to anemoi training"
     )
-    simulate_training_parser2.set_defaults(func=simulate_training2_cmd)
+    simulate_training_parser2.set_defaults(func=simulate_training_cmd2)
     simulate_training_parser2.add_argument(
         "zarr-store",
         help="path to .zarr store",

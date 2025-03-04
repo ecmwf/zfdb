@@ -6,12 +6,11 @@
 # In applying this licence, ECMWF does not waive the privileges and immunities
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
-
-
 import argparse
 import logging
 import math
 import os
+import random
 import shutil
 import sys
 import time
@@ -153,6 +152,7 @@ def create_database(demo_data_path: Path, path):
     if db_store_path.exists():
         shutil.rmtree(db_store_path)
     db_store_path.mkdir(parents=True, exist_ok=True)
+
     schema_path = path / "schema"
     shutil.copy(demo_data_path / "schema", schema_path)
     fdb_config = {
@@ -195,17 +195,27 @@ def open_database(config_path: Path):
 def import_example_data(
     fdb,
     datasets: list[AnemoiExampleDataSet | ForecastExampleDataSet],
+    show_progress: bool,
     flush_every_nth_message=256,
 ):
     logger.info("Importing data into fdb")
     for dataset in datasets:
-        logger.info(f"Archiving {dataset.grib_file.name}")
-        grib_file = eccodes.FileReader(dataset.grib_file)
-        for idx, msg in enumerate(tqdm.tqdm(grib_file)):
-            fdb.archive(msg.get_buffer())
-            if (idx + 1) % flush_every_nth_message == 0:
-                fdb.flush()
-        fdb.flush()
+        import_grib_file(
+            fdb,
+            dataset.grib_file.expanduser().resolve(),
+            show_progress,
+            flush_every_nth_message,
+        )
+
+
+def import_grib_file(fdb, grib_file, show_progress, flush_every_nth_message=256):
+    logger.info(f"Archiving {grib_file}")
+    grib_file = eccodes.FileReader(grib_file)
+    for idx, msg in enumerate(tqdm.tqdm(grib_file, disable=not show_progress)):
+        fdb.archive(msg.get_buffer())
+        if (idx + 1) % flush_every_nth_message == 0:
+            fdb.flush()
+    fdb.flush()
 
 
 def create_callgraph(
@@ -227,7 +237,10 @@ def create_callgraph(
 
 
 def demo_performance_comparison(
-    fdb: pyfdb.FDB, gribjump: pygribjump.GribJump, dataset: AnemoiExampleDataSet
+    fdb: pyfdb.FDB,
+    gribjump: pygribjump.GribJump,
+    dataset: AnemoiExampleDataSet,
+    show_progress: bool,
 ) -> None:
     if not dataset.anemoi_dataset:
         raise Exception(
@@ -248,7 +261,7 @@ def demo_performance_comparison(
 
     def time_compute_field_sum_full_time_range(stores, idx, iterations):
         timings = [[] for _ in stores]
-        for _ in tqdm.tqdm(range(iterations)):
+        for _ in tqdm.tqdm(range(iterations), disable=not show_progress):
             for idx, data in enumerate(stores):
                 t0 = time.perf_counter_ns()
                 for chunk_idx in range(data["data"].chunks[0]):
@@ -318,9 +331,24 @@ def compute_mean_per_field(store) -> None:
 def create_db_cmd(args):
     logger.info("Creating demo database")
     configs = create_database(Path(__file__).parent / "demo-data", args.path)
-    fdb = open_database(configs.fdb_config_path)
-    datasets = example_datasets()
-    import_example_data(fdb, datasets)
+    if not args.empty:
+        fdb = open_database(configs.fdb_config_path)
+        datasets = example_datasets()
+        import_example_data(fdb, datasets, args.progress)
+
+
+def import_data_cmd(args):
+    logger.info("Importing data into demo database")
+    fdb_config_path = args.database / "fdb_config.yaml"
+    fdb = open_database(fdb_config_path)
+    for p in args.path:
+        p = p.expanduser().resolve()
+        if p.is_dir():
+            for f in p.iterdir():
+                import_grib_file(fdb, f, args.progress)
+
+        elif p.is_file():
+            import_grib_file(fdb, p, args.progress)
 
 
 def profile_cmd(args):
@@ -366,10 +394,53 @@ def profile_cmd(args):
         logger.info(f"Computation took {print_in_closest_unit(t1 - t0)}")
 
 
+def simulate_training_cmd(args):
+    fdb = open_database(args.database / "fdb_config.yaml")
+    gribjump = open_gribjump(args.database / "gribjump_config.yaml")
+    store = zarr.open_group(
+        zfdb.make_anemoi_dataset_like_view(
+            recipe=yaml.safe_load(args.recipe.read_text()),
+            fdb=fdb,
+            gribjump=gribjump,
+        )
+    )
+
+    data = store["data"]
+    dates = data.shape[0]
+    base_date_access_order = list(range(0, dates - 2))
+    random.shuffle(base_date_access_order)
+
+    for idx in tqdm.tqdm(base_date_access_order, disable=not args.progress):
+        logger.info(f"Processing chunks[{idx}, {idx + 1}, {idx + 2}]")
+        np.mean(data[idx], axis=2).squeeze()
+        np.mean(data[idx + 1], axis=2).squeeze()
+        np.mean(data[idx + 2], axis=2).squeeze()
+
+
+def simulate_training_cmd2(args):
+    store = zarr.open_group(args.zstore)
+
+    data = store["data"]
+    dates = data.shape[0]
+    base_date_access_order = list(range(0, dates - 2))[: 31 * 4]
+    random.shuffle(base_date_access_order)
+
+    for idx in tqdm.tqdm(base_date_access_order, disable=not args.progress):
+        logger.info(f"Processing chunks[{idx}, {idx + 1}, {idx + 2}]")
+        np.mean(data[idx], axis=2).squeeze()
+        np.mean(data[idx + 1], axis=2).squeeze()
+        np.mean(data[idx + 2], axis=2).squeeze()
+
+
 def parse_cli_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "-v", "--verbose", help="Enables verbose output", action="store_true"
+    )
+    parser.add_argument(
+        "-p", "--progress", help="Show progress output", action="store_true"
     )
     sub_parsers = parser.add_subparsers(dest="cmd", required=True)
 
@@ -384,6 +455,30 @@ def parse_cli_args():
         type=Path,
         nargs="?",
         default=Path.cwd(),
+    )
+    create_db_parser.add_argument(
+        "--empty",
+        help="Do not import example data, just create an empty database",
+        action="store_true",
+    )
+
+    import_data_parser = sub_parsers.add_parser(
+        "import-data",
+        help="Import data into FDB, can point to a single grib file or a directory",
+    )
+    import_data_parser.set_defaults(func=import_data_cmd)
+    import_data_parser.add_argument(
+        "-d",
+        "--database",
+        type=Path,
+        help="Path to the database folder that contains configs, db_store and schema",
+        default=Path.cwd(),
+    )
+    import_data_parser.add_argument(
+        "path",
+        help="Path from where to read grib file or files",
+        type=Path,
+        nargs="+",
     )
 
     profile_parser = sub_parsers.add_parser(
@@ -405,6 +500,34 @@ def parse_cli_args():
         type=Path,
         help="Path to the database folder that contains configs, db_store and schema",
         default=Path.cwd(),
+    )
+    simulate_training_parser = sub_parsers.add_parser(
+        "simulate-training-zfdb",
+        help="Simulates data access similar to anemoi training",
+    )
+    simulate_training_parser.set_defaults(func=simulate_training_cmd)
+    simulate_training_parser.add_argument(
+        "recipe",
+        help="path to anemoi like recipe.yaml describing the training data",
+        type=Path,
+    )
+    simulate_training_parser.add_argument(
+        "-d",
+        "--database",
+        type=Path,
+        help="Path to the database folder that contains configs, db_store and schema",
+        default=Path.cwd(),
+    )
+
+    simulate_training_parser2 = sub_parsers.add_parser(
+        "simulate-training-anemoi-dataset",
+        help="Simulates data access similar to anemoi training",
+    )
+    simulate_training_parser2.set_defaults(func=simulate_training_cmd2)
+    simulate_training_parser2.add_argument(
+        "zstore",
+        help="path to .zarr store",
+        type=Path,
     )
 
     return parser.parse_args()

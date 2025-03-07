@@ -402,6 +402,7 @@ def simulate_training_cmd(args):
             recipe=yaml.safe_load(args.recipe.read_text()),
             fdb=fdb,
             gribjump=gribjump,
+            extractor=args.extractor,
         )
     )
 
@@ -517,6 +518,14 @@ def parse_cli_args():
         type=Path,
         help="Path to the database folder that contains configs, db_store and schema",
         default=Path.cwd(),
+    )
+    simulate_training_parser.add_argument(
+        "-e",
+        "--extractor",
+        choices=["eccodes", "gribjump"],
+        default="eccodes",
+        help="Select how fields are extracted",
+        nargs="?",
     )
 
     simulate_training_parser2 = sub_parsers.add_parser(

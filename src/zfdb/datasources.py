@@ -148,10 +148,18 @@ class FdbForecastDataSource(DataSource):
 
     def __init__(
         self,
+        *,
+        extractor: str = "eccodes",
         fdb: pyfdb.FDB,
         gribjump: pygribjump.GribJump,
         requests: list[Request],
     ) -> None:
+        if extractor == "eccodes":
+            self.extract = self._extract_with_eccodes
+        elif extractor == "gribjump":
+            self.extract = self._extract_with_gribjump
+        else:
+            raise ZfdbError("Unkown extractor specified.")
         self._fdb = fdb
         self._gribjump = gribjump
         self._requests = requests
@@ -234,13 +242,7 @@ class FdbForecastDataSource(DataSource):
                     )
                 ]
             )
-        gj_results = [
-            self._gribjump.extract(polyrequest) for polyrequest in polyrequests
-        ]
-        buffer = np.zeros(self._chunks, dtype="float32")
-        for idx, field in enumerate(itertools.chain.from_iterable(gj_results)):
-            buffer[0, idx, 0, :] = field[0][0][0]
-        return buffer.tobytes()
+        return self.extract(polyrequests)
 
     def __contains__(self, key: tuple[int, ...]) -> bool:
         if len(key) != len(self._shape):
@@ -250,6 +252,32 @@ class FdbForecastDataSource(DataSource):
         ):
             return False
         return True
+    
+    def _extract_with_eccodes(self, polyrequests) -> bytes:
+        def foo(ff):
+            msg = self._fdb.retrieve(ff[0])
+            content = msg.read()
+            gid = eccodes.codes_new_from_message(bytes(content))
+            values = eccodes.codes_get_values(gid)
+            eccodes.codes_release(gid)
+            return values
+
+        gj_results = [
+            foo(ff[0]) for ff in polyrequests 
+        ]
+        buffer = np.zeros(self._chunks, dtype="float32")
+        for idx, field in enumerate(gj_results):
+            buffer[0, idx, 0, :] = field
+        return buffer.tobytes()
+
+    def _extract_with_gribjump(self, polyrequests) -> bytes:
+        gj_results = [
+            self._gribjump.extract(polyrequest) for polyrequest in polyrequests
+        ]
+        buffer = np.zeros(self._chunks, dtype="float32")
+        for idx, field in enumerate(itertools.chain.from_iterable(gj_results)):
+            buffer[0, idx, 0, :] = field[0][0][0]
+        return buffer.tobytes()
 
 
 class FdbSource(DataSource):
@@ -260,6 +288,8 @@ class FdbSource(DataSource):
 
     def __init__(
         self,
+        *,
+        extractor: str = "eccodes",
         fdb: pyfdb.FDB,
         gribjump: pygribjump.GribJump,
         mars_requests: list[dict],
@@ -267,6 +297,12 @@ class FdbSource(DataSource):
         stop: np.datetime64,
         interval: np.timedelta64,
     ) -> None:
+        if extractor == "eccodes":
+            self.extract = self._extract_with_eccodes
+        elif extractor == "gribjump":
+            self.extract = self._extract_with_gribjump
+        else:
+            raise ZfdbError("Unkown extractor specified.")
         self._fdb = fdb
         self._gribjump = gribjump
         self._mars_requests = mars_requests
@@ -362,23 +398,7 @@ class FdbSource(DataSource):
                     for i in self._fdb.list(request, keys=True)
                 ]
             )
-        def foo(ff):
-            msg = self._fdb.retrieve(ff[0])
-            content = msg.read()
-            gid = eccodes.codes_new_from_message(bytes(content))
-            values = eccodes.codes_get_values(gid)
-            eccodes.codes_release(gid)
-            return values
-
-        gj_results = [
-
-            foo(ff[0]) for ff in polyrequests 
-            #self._gribjump.extract(polyrequest) for polyrequest in polyrequests
-        ]
-        buffer = np.zeros(self._chunks, dtype="float32")
-        for idx, field in enumerate(gj_results):
-            buffer[0, idx, 0, :] = field
-        return buffer.tobytes()
+        return self.extract(polyrequests)
 
     def __contains__(self, key: tuple[int, ...]) -> bool:
         if len(key) != len(self._shape):
@@ -388,6 +408,33 @@ class FdbSource(DataSource):
         ):
             return False
         return True
+
+    def _extract_with_eccodes(self, polyrequests) -> bytes:
+        def foo(ff):
+            msg = self._fdb.retrieve(ff[0])
+            content = msg.read()
+            gid = eccodes.codes_new_from_message(bytes(content))
+            values = eccodes.codes_get_values(gid)
+            eccodes.codes_release(gid)
+            return values
+
+        gj_results = [
+            foo(ff[0]) for ff in polyrequests 
+        ]
+        buffer = np.zeros(self._chunks, dtype="float32")
+        for idx, field in enumerate(gj_results):
+            buffer[0, idx, 0, :] = field
+        return buffer.tobytes()
+
+    def _extract_with_gribjump(self, polyrequests) -> bytes:
+        gj_results = [
+            self._gribjump.extract(polyrequest) for polyrequest in polyrequests
+        ]
+        buffer = np.zeros(self._chunks, dtype="float32")
+        for idx, field in enumerate(itertools.chain.from_iterable(gj_results)):
+            buffer[0, idx, 0, :] = field[0][0][0]
+        return buffer.tobytes()
+
 
     @staticmethod
     def _extract_fields_count_from_mars_request(mars_requests: list[dict]) -> int:

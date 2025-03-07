@@ -121,7 +121,9 @@ def make_forecast_data_view(
             children=[
                 FdbZarrArray(
                     name="data",
-                    datasource=FdbForecastDataSource(fdb, gribjump, requests),
+                    datasource=FdbForecastDataSource(
+                        fdb=fdb, gribjump=gribjump, requests=requests
+                    ),
                 ),
             ]
         )
@@ -133,6 +135,7 @@ def make_anemoi_dataset_like_view(
     fdb: pyfdb.FDB | None = None,
     gribjump: pygribjump.GribJump | None = None,
     recipe: dict,
+    extractor: str = "eccodes",
 ) -> FdbZarrMapping:
     # get common mars request part
     start_date, end_date, frequency, mars_requests = extract_mars_requests_from_recipe(
@@ -164,12 +167,13 @@ def make_anemoi_dataset_like_view(
                 FdbZarrArray(
                     name="data",
                     datasource=FdbSource(
-                        fdb,
-                        gribjump,
-                        mars_requests,
-                        np.datetime64(start_date),
-                        np.datetime64(end_date),
-                        np.timedelta64(frequency[0], frequency[1]),
+                        fdb=fdb,
+                        gribjump=gribjump,
+                        mars_requests=mars_requests,
+                        start=np.datetime64(start_date),
+                        stop=np.datetime64(end_date),
+                        interval=np.timedelta64(frequency[0], frequency[1]),
+                        extractor=extractor,
                     ),
                 ),
             ]

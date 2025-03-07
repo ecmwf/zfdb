@@ -178,18 +178,14 @@ class FdbForecastDataSource(DataSource):
 
         # TODO(kkratz): What errors can be emited from retrieve?
         msg = self._fdb.retrieve(first_field["keys"])
-        tmp_path = pathlib.Path("tmp.grib")
-        tmp_path.write_bytes(msg.read())
-
-        with open(tmp_path) as f:
-            gid = eccodes.codes_new_from_file(f, eccodes.CODES_PRODUCT_GRIB)
-            values_count = eccodes.codes_get(gid, "numberOfValues")
-            eccodes.codes_release(gid)
-            if not isinstance(values_count, int):
-                raise ZfdbError(
-                    "Grib message does not contain 'numberOfValues', cannot establish size of fields"
-                )
-        tmp_path.unlink()
+        content = msg.read()
+        gid = eccodes.codes_new_from_message(bytes(content))
+        values_count = eccodes.codes_get(gid, "numberOfValues")
+        eccodes.codes_release(gid)
+        if not isinstance(values_count, int):
+            raise ZfdbError(
+                "Grib message does not contain 'numberOfValues', cannot establish size of fields"
+            )
         return values_count
 
     def create_dot_zarr_array(self) -> DotZarrArray:
@@ -292,16 +288,20 @@ class FdbSource(DataSource):
         reference_mars_request["time"] = time.split(":")[0]
         reference_mars_request.pop("grid", None)
 
-        first_field = next(self._fdb.list(reference_mars_request, keys=True))
-        msg = self._fdb.retrieve(first_field["keys"])
-        tmp_path = pathlib.Path("tmp.grib")
-        tmp_path.write_bytes(msg.read())
+        try:
+            res_iter = self._fdb.list(reference_mars_request, keys=True)
+            first_field = next(res_iter)
+        except StopIteration:
+            raise ZfdbError(
+                "No data found for first request / first step to establish size of fields."
+            )
 
-        with open(tmp_path) as f:
-            gid = eccodes.codes_new_from_file(f, eccodes.CODES_PRODUCT_GRIB)
-            values_count = eccodes.codes_get(gid, "numberOfValues")
-            eccodes.codes_release(gid)
-        tmp_path.unlink()
+        # TODO(kkratz): What errors can be emited from retrieve?
+        msg = self._fdb.retrieve(first_field["keys"])
+        content = msg.read()
+        gid = eccodes.codes_new_from_message(bytes(content))
+        values_count = eccodes.codes_get(gid, "numberOfValues")
+        eccodes.codes_release(gid)
 
         self._shape = (int(dates_count), fields_count, int(1), values_count)
         self._chunks = (1, fields_count, 1, values_count)
@@ -362,12 +362,22 @@ class FdbSource(DataSource):
                     for i in self._fdb.list(request, keys=True)
                 ]
             )
+        def foo(ff):
+            msg = self._fdb.retrieve(ff[0])
+            content = msg.read()
+            gid = eccodes.codes_new_from_message(bytes(content))
+            values = eccodes.codes_get_values(gid)
+            eccodes.codes_release(gid)
+            return values
+
         gj_results = [
-            self._gribjump.extract(polyrequest) for polyrequest in polyrequests
+
+            foo(ff[0]) for ff in polyrequests 
+            #self._gribjump.extract(polyrequest) for polyrequest in polyrequests
         ]
         buffer = np.zeros(self._chunks, dtype="float32")
-        for idx, field in enumerate(itertools.chain.from_iterable(gj_results)):
-            buffer[0, idx, 0, :] = field[0][0][0]
+        for idx, field in enumerate(gj_results):
+            buffer[0, idx, 0, :] = field
         return buffer.tobytes()
 
     def __contains__(self, key: tuple[int, ...]) -> bool:

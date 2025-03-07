@@ -255,15 +255,16 @@ class FdbForecastDataSource(DataSource):
     
     def _extract_with_eccodes(self, polyrequests) -> bytes:
         def foo(ff):
-            msg = self._fdb.retrieve(ff[0])
+            msg = self._fdb.retrieve(ff)
             content = msg.read()
             gid = eccodes.codes_new_from_message(bytes(content))
             values = eccodes.codes_get_values(gid)
             eccodes.codes_release(gid)
             return values
 
+
         gj_results = [
-            foo(ff[0]) for ff in polyrequests 
+            foo(ff[0]) for ff in itertools.chain(*polyrequests) 
         ]
         buffer = np.zeros(self._chunks, dtype="float32")
         for idx, field in enumerate(gj_results):
@@ -411,7 +412,7 @@ class FdbSource(DataSource):
 
     def _extract_with_eccodes(self, polyrequests) -> bytes:
         def foo(ff):
-            msg = self._fdb.retrieve(ff[0])
+            msg = self._fdb.retrieve(ff)
             content = msg.read()
             gid = eccodes.codes_new_from_message(bytes(content))
             values = eccodes.codes_get_values(gid)
@@ -419,7 +420,7 @@ class FdbSource(DataSource):
             return values
 
         gj_results = [
-            foo(ff[0]) for ff in polyrequests 
+            foo(ff[0]) for ff in itertools.chain(*polyrequests) 
         ]
         buffer = np.zeros(self._chunks, dtype="float32")
         for idx, field in enumerate(gj_results):

@@ -433,6 +433,21 @@ def simulate_training_cmd2(args):
         np.mean(data[idx + 2], axis=2).squeeze()
 
 
+def dump_zarr_cmd(args):
+    fdb = open_database(args.database / "fdb_config.yaml")
+    gribjump = open_gribjump(args.database / "gribjump_config.yaml")
+    store = zarr.open_group(
+        zfdb.make_anemoi_dataset_like_view(
+            recipe=yaml.safe_load(args.recipe.read_text()),
+            fdb=fdb,
+            gribjump=gribjump,
+            extractor=args.extractor
+        )
+    )
+    zarr.convenience.copy_store(store.store, zarr.DirectoryStore(args.out)) 
+
+
+
 def parse_cli_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -536,6 +551,39 @@ def parse_cli_args():
     simulate_training_parser2.add_argument(
         "zstore",
         help="path to .zarr store",
+        type=Path,
+    )
+
+    dump_zarr_parser = sub_parsers.add_parser(
+        "dump-zarr", help="Copy zfdb view into zarr store"
+    )
+    dump_zarr_parser.set_defaults(func=dump_zarr_cmd)
+    dump_zarr_parser.add_argument(
+        "-d",
+        "--database",
+        type=Path,
+        help="Path to the database folder that contains configs, db_store and schema",
+        default=Path.cwd(),
+    )
+    dump_zarr_parser.add_argument(
+        "-e",
+        "--extractor",
+        choices=["eccodes", "gribjump"],
+        default="eccodes",
+        help="Select how fields are extracted",
+        nargs="?",
+    )
+    dump_zarr_parser.add_argument(
+        "-o",
+        "--out",
+        help="Output path",
+        type=Path,
+        nargs="?",
+        default=Path("dump.zarr"),
+    )
+    dump_zarr_parser.add_argument(
+        "recipe",
+        help="path to anemoi like recipe.yaml describing the training data",
         type=Path,
     )
 

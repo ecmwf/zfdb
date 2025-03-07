@@ -31,7 +31,10 @@ view_hashes = {}
 def map_requests_from_json(json) -> list[zfdb.Request]:
     for r in json["requests"]:
         r["date_time"] = np.datetime64(r["date_time"])
-    return [zfdb.Request(**r) for r in json["requests"]]
+    return [
+        zfdb.Request(request=r, chunk_axis=zfdb.ChunkAxisType.Step)
+        for r in json["requests"]
+    ]
 
 
 @app.route("/create", methods=["POST"])

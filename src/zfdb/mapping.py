@@ -13,9 +13,12 @@ import numpy as np
 import pyfdb
 import pygribjump
 
-from .datasources import FdbForecastDataSource, FdbSource, make_dates_source
+from .datasources import (
+    FdbSource,
+    make_lat_long_sources,
+)
 from .error import ZfdbError
-from .request import Request
+from .request import ChunkAxisType, Request
 from .zarr import FdbZarrArray, FdbZarrGroup
 
 
@@ -67,6 +70,14 @@ class FdbZarrMapping(MutableMapping):
 
 
 def extract_mars_requests_from_recipe(recipe: dict):
+    required_keys = {
+        "class": "ea",
+        "domain": "g",
+        "expver": "0001",
+        "stream": "oper",
+        "type": "an",
+        "step": "0",
+    }
     base_request = dict()
     # NOTE(kkratz): There is more available than just common.mars_request
     if "common" in recipe and "mars_request" in recipe["common"]:
@@ -75,8 +86,14 @@ def extract_mars_requests_from_recipe(recipe: dict):
     if "dates" not in recipe:
         raise ZfdbError("Expected 'dates' in recipe")
 
-    start_date = recipe["dates"]["start"]
-    end_date = recipe["dates"]["end"]
+    start_date = recipe["dates"]["start"].split("T")[0]
+    end_date = recipe["dates"]["end"].split("T")[0]
+    dates = [
+        str(d).replace("-", "")
+        for d in np.arange(
+            np.datetime64(start_date, "D"), np.datetime64(end_date, "D") + 1
+        )
+    ]
 
     # TODO(kkratz): There is code in anemoi.utils to convert the textual representation to a timedelta64
     # see: anemoi.utils.dates.as_timedelta(...)
@@ -87,6 +104,14 @@ def extract_mars_requests_from_recipe(recipe: dict):
         return int(match.group(1)), match.group(2)
 
     frequency = parse_frequency(recipe["dates"]["frequency"])
+    num_times = np.timedelta64(1, "D") // np.timedelta64(frequency[0], frequency[1])
+    times = [
+        str(
+            np.datetime64("2000-01-01T00", "h")
+            + x * np.timedelta64(frequency[0], frequency[1])
+        ).split("T")[1]
+        for x in range(num_times)
+    ]
 
     # recipes do support more than joins under input but for the sake of example we require
     # this to be present for now
@@ -95,8 +120,60 @@ def extract_mars_requests_from_recipe(recipe: dict):
 
     #  for now we only act on "mars" inputs, they need to be joined along the date-time axis
     inputs = recipe["input"]["join"]
-    requests = [base_request | src["mars"] for src in inputs if "mars" in src]
-    return start_date, end_date, frequency, requests
+    requests = [
+        {"date": dates, "time": times} | required_keys | base_request | src["mars"]
+        for src in inputs
+        if "mars" in src
+    ]
+    for r in requests:
+        r.pop("grid", None)
+    return requests
+
+
+def make_anemoi_dataset_like_view(
+    *,
+    fdb: pyfdb.FDB | None = None,
+    gribjump: pygribjump.GribJump | None = None,
+    recipe: dict,
+    extractor: str = "eccodes",
+) -> FdbZarrMapping:
+    # get common mars request part
+    mars_requests = extract_mars_requests_from_recipe(recipe)
+    if not fdb:
+        fdb = pyfdb.FDB()
+    if not gribjump:
+        gribjump = pygribjump.GribJump()
+
+    requests: list[Request] = [
+        Request(
+            request=req,
+            chunk_axis=ChunkAxisType.DateTime,
+        )
+        for req in mars_requests
+    ]
+
+    lat_src, lon_src = make_lat_long_sources(fdb, mars_requests[0])
+    return FdbZarrMapping(
+        FdbZarrGroup(
+            children=[
+                # FdbZarrArray(
+                #     name="dates",
+                #     datasource=make_dates_source(dates=mars_requests[0]["date"], times=mars_requests[0]["time"]),
+                # ),
+                FdbZarrArray(name="latitudes", datasource=lat_src),
+                FdbZarrArray(name="longitudes", datasource=lon_src),
+                FdbZarrArray(
+                    name="data",
+                    datasource=FdbSource(
+                        fdb=fdb,
+                        gribjump=gribjump,
+                        request=requests,
+                        extractor=extractor,
+                    ),
+                ),
+            ]
+        )
+    )
 
 
 def make_forecast_data_view(
@@ -106,71 +183,17 @@ def make_forecast_data_view(
     request: Request | list[Request],
 ) -> FdbZarrMapping:
     requests = request if isinstance(request, list) else [request]
-    if len(requests) > 1 and not all(
-        map(lambda x: x[0].matches_on_time_axis(x[1]), zip(requests[:-1], requests[1:]))
-    ):
-        raise ZfdbError("Requests are not matching on time axis")
-
-    if not fdb:
-        fdb = pyfdb.FDB()
-    if not gribjump:
-        gribjump = pygribjump.GribJump()
+    # if len(requests) > 1 and not all(
+    #     map(lambda x: x[0].matches_on_time_axis(x[1]), zip(requests[:-1], requests[1:]))
+    # ):
+    #     raise ZfdbError("Requests are not matching on time axis")
 
     return FdbZarrMapping(
         FdbZarrGroup(
             children=[
                 FdbZarrArray(
                     name="data",
-                    datasource=FdbForecastDataSource(fdb, gribjump, requests),
-                ),
-            ]
-        )
-    )
-
-
-def make_anemoi_dataset_like_view(
-    *,
-    fdb: pyfdb.FDB | None = None,
-    gribjump: pygribjump.GribJump | None = None,
-    recipe: dict,
-) -> FdbZarrMapping:
-    # get common mars request part
-    start_date, end_date, frequency, mars_requests = extract_mars_requests_from_recipe(
-        recipe
-    )
-    if not fdb:
-        fdb = pyfdb.FDB()
-    if not gribjump:
-        gribjump = pygribjump.GribJump()
-
-    reference_mars_request = mars_requests[0]
-    date, time = start_date.split("T")
-    reference_mars_request["date"] = date
-    reference_mars_request["time"] = time.split(":")[0]
-    # lat_src, lon_src = make_lat_long_sources(reference_mars_request)
-    return FdbZarrMapping(
-        FdbZarrGroup(
-            children=[
-                FdbZarrArray(
-                    name="dates",
-                    datasource=make_dates_source(
-                        start=np.datetime64(start_date, "s"),
-                        stop=np.datetime64(end_date, "s"),
-                        interval=np.timedelta64(frequency[0], frequency[1]),
-                    ),
-                ),
-                # FdbZarrArray(name="latitudes", datasource=lat_src),
-                # FdbZarrArray(name="longitudes", datasource=lon_src),
-                FdbZarrArray(
-                    name="data",
-                    datasource=FdbSource(
-                        fdb,
-                        gribjump,
-                        mars_requests,
-                        np.datetime64(start_date),
-                        np.datetime64(end_date),
-                        np.timedelta64(frequency[0], frequency[1]),
-                    ),
+                    datasource=FdbSource(fdb=fdb, gribjump=gribjump, request=requests),
                 ),
             ]
         )

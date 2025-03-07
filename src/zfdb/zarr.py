@@ -59,7 +59,7 @@ class DotZarrGroup:
 class DotZarrAttributes:
     _: KW_ONLY
     copyright: str = "ecmwf"
-    variables: list[str] = field(default_factory=list)
+    variables: list[dict] = field(default_factory=list)
 
     def asbytes(self) -> bytes:
         return json.dumps(asdict(self)).encode("utf8")

@@ -102,44 +102,52 @@ def example_datasets() -> list[AnemoiExampleDataSet | ForecastExampleDataSet]:
             grib_file=data_location / "fc_example.grib",
             requests=[
                 zfdb.Request(
-                    levtype="sfc",
-                    steps=list(range(0, 48)),
-                    date_time=np.datetime64("2025-01-01T00:00:00"),
-                    params=[
-                        "165",
-                        "166",
-                        "168",
-                        "167",
-                        "172",
-                        "151",
-                        "160",
-                        "235",
-                        "163",
-                        "134",
-                        "136",
-                        "129",
-                    ],
+                    request={
+                        "levtype": "sfc",
+                        "steps": list(range(0, 48)),
+                        "date": np.datetime64("2025-01-01"),
+                        "time": "0000",
+                        "params": [
+                            "165",
+                            "166",
+                            "168",
+                            "167",
+                            "172",
+                            "151",
+                            "160",
+                            "235",
+                            "163",
+                            "134",
+                            "136",
+                            "129",
+                        ],
+                    },
+                    chunk_axis=zfdb.ChunkAxisType.Step,
                 ),
                 zfdb.Request(
-                    levtype="pl",
-                    level=[
-                        "50",
-                        "100",
-                        "150",
-                        "200",
-                        "250",
-                        "300",
-                        "400",
-                        "500",
-                        "600",
-                        "700",
-                        "850",
-                        "925",
-                        "1000",
-                    ],
-                    steps=list(range(0, 48)),
-                    date_time=np.datetime64("2025-01-01T00:00:00"),
-                    params=["133", "130", "131", "132", "135", "129"],
+                    request={
+                        "levtype": "pl",
+                        "steps": list(range(0, 48)),
+                        "date": np.datetime64("2025-01-01"),
+                        "time": "0000",
+                        "params": ["133", "130", "131", "132", "135", "129"],
+                        "level": [
+                            "50",
+                            "100",
+                            "150",
+                            "200",
+                            "250",
+                            "300",
+                            "400",
+                            "500",
+                            "600",
+                            "700",
+                            "850",
+                            "925",
+                            "1000",
+                        ],
+                    },
+                    chunk_axis=zfdb.ChunkAxisType.Step,
                 ),
             ],
         ),
@@ -402,6 +410,7 @@ def simulate_training_cmd(args):
             recipe=yaml.safe_load(args.recipe.read_text()),
             fdb=fdb,
             gribjump=gribjump,
+            extractor=args.extractor,
         )
     )
 
@@ -430,6 +439,20 @@ def simulate_training_cmd2(args):
         np.mean(data[idx], axis=2).squeeze()
         np.mean(data[idx + 1], axis=2).squeeze()
         np.mean(data[idx + 2], axis=2).squeeze()
+
+
+def dump_zarr_cmd(args):
+    fdb = open_database(args.database / "fdb_config.yaml")
+    gribjump = open_gribjump(args.database / "gribjump_config.yaml")
+    store = zarr.open_group(
+        zfdb.make_anemoi_dataset_like_view(
+            recipe=yaml.safe_load(args.recipe.read_text()),
+            fdb=fdb,
+            gribjump=gribjump,
+            extractor=args.extractor,
+        )
+    )
+    zarr.convenience.copy_store(store.store, zarr.DirectoryStore(args.out))
 
 
 def parse_cli_args():
@@ -518,6 +541,14 @@ def parse_cli_args():
         help="Path to the database folder that contains configs, db_store and schema",
         default=Path.cwd(),
     )
+    simulate_training_parser.add_argument(
+        "-e",
+        "--extractor",
+        choices=["eccodes", "gribjump"],
+        default="eccodes",
+        help="Select how fields are extracted",
+        nargs="?",
+    )
 
     simulate_training_parser2 = sub_parsers.add_parser(
         "simulate-training-anemoi-dataset",
@@ -527,6 +558,39 @@ def parse_cli_args():
     simulate_training_parser2.add_argument(
         "zstore",
         help="path to .zarr store",
+        type=Path,
+    )
+
+    dump_zarr_parser = sub_parsers.add_parser(
+        "dump-zarr", help="Copy zfdb view into zarr store"
+    )
+    dump_zarr_parser.set_defaults(func=dump_zarr_cmd)
+    dump_zarr_parser.add_argument(
+        "-d",
+        "--database",
+        type=Path,
+        help="Path to the database folder that contains configs, db_store and schema",
+        default=Path.cwd(),
+    )
+    dump_zarr_parser.add_argument(
+        "-e",
+        "--extractor",
+        choices=["eccodes", "gribjump"],
+        default="eccodes",
+        help="Select how fields are extracted",
+        nargs="?",
+    )
+    dump_zarr_parser.add_argument(
+        "-o",
+        "--out",
+        help="Output path",
+        type=Path,
+        nargs="?",
+        default=Path("dump.zarr"),
+    )
+    dump_zarr_parser.add_argument(
+        "recipe",
+        help="path to anemoi like recipe.yaml describing the training data",
         type=Path,
     )
 

@@ -13,7 +13,6 @@ Contains implementations of datasources and factory functions for crating them.
 
 import itertools
 import math
-import pathlib
 from functools import cache
 
 import eccodes
@@ -22,7 +21,7 @@ import pyfdb
 import pygribjump
 
 from .error import ZfdbError
-from .request import Request
+from .request import Request, into_mars_request_dict
 from .zarr import DataSource, DotZarrArray, DotZarrAttributes
 
 
@@ -140,122 +139,6 @@ class NDarraySource(DataSource):
         return True
 
 
-class FdbForecastDataSource(DataSource):
-    """
-    Uses FDB as a backend.
-    Data is retrieved from FDB and assembled on each access.
-    """
-
-    def __init__(
-        self,
-        fdb: pyfdb.FDB,
-        gribjump: pygribjump.GribJump,
-        requests: list[Request],
-    ) -> None:
-        self._fdb = fdb
-        self._gribjump = gribjump
-        self._requests = requests
-        self._gj = pygribjump.GribJump()
-        steps_count = self._requests[0].steps_count
-        fields_count = sum([r.field_count for r in self._requests])
-        values_count = self._query_number_of_values_in_field()
-        self._shape = (int(steps_count), fields_count, int(1), int(values_count))
-        self._chunks = (1, fields_count, 1, values_count)
-        self._chunks_per_dimension = tuple(
-            [math.ceil(a / b) for (a, b) in zip(self._shape, self._chunks)]
-        )
-
-    def _query_number_of_values_in_field(self) -> int:
-        try:
-            res_iter = self._fdb.list(
-                self._requests[0].as_mars_request_for_step_index(0), keys=True
-            )
-            first_field = next(res_iter)
-        except StopIteration:
-            raise ZfdbError(
-                "No data found for first request / first step to establish size of fields."
-            )
-
-        # TODO(kkratz): What errors can be emited from retrieve?
-        msg = self._fdb.retrieve(first_field["keys"])
-        tmp_path = pathlib.Path("tmp.grib")
-        tmp_path.write_bytes(msg.read())
-
-        with open(tmp_path) as f:
-            gid = eccodes.codes_new_from_file(f, eccodes.CODES_PRODUCT_GRIB)
-            values_count = eccodes.codes_get(gid, "numberOfValues")
-            eccodes.codes_release(gid)
-            if not isinstance(values_count, int):
-                raise ZfdbError(
-                    "Grib message does not contain 'numberOfValues', cannot establish size of fields"
-                )
-        tmp_path.unlink()
-        return values_count
-
-    def create_dot_zarr_array(self) -> DotZarrArray:
-        return DotZarrArray(
-            shape=self._shape,
-            chunks=self._chunks,
-            dtype="float32",
-            order="C",
-        )
-
-    def create_dot_zarr_attrs(self) -> DotZarrAttributes:
-        def to_name(keys) -> str:
-            if keys["levtype"] == "pl":
-                return f"{keys['param']}_{keys['levelist']}"
-            return keys["param"]
-
-        listing = []
-        for request in self._requests:
-            listing += [
-                to_name(i["keys"])
-                for i in self._fdb.list(
-                    request.as_mars_request_for_step_index(0), keys=True
-                )
-            ]
-
-        return DotZarrAttributes(variables=listing)
-
-    def chunks(self) -> tuple[int, ...]:
-        return self._chunks_per_dimension
-
-    def __getitem__(self, key: tuple[int, ...]) -> bytes:
-        if len(key) != len(self._shape):
-            raise KeyError
-        if any(
-            k < 0 or k >= limit for k, limit in zip(key, self._chunks_per_dimension)
-        ):
-            raise KeyError
-        step_index = key[0]
-        polyrequests = []
-        for request in self._requests:
-            polyrequests.append(
-                [
-                    (i["keys"], [(0, self._shape[3])])
-                    for i in self._fdb.list(
-                        request.as_mars_request_for_step_index(step_index), keys=True
-                    )
-                ]
-            )
-        gj_results = [
-            self._gribjump.extract(polyrequest) for polyrequest in polyrequests
-        ]
-        buffer = np.zeros(self._chunks, dtype="float32")
-        for idx, field in enumerate(itertools.chain.from_iterable(gj_results)):
-            buffer[0, idx, 0, :] = field[0][0][0]
-        return buffer.tobytes()
-
-    def __contains__(self, key: tuple[int, ...]) -> bool:
-        if len(key) != len(self._shape):
-            return False
-        if any(
-            k < 0 or k >= limit for k, limit in zip(key, self._chunks_per_dimension)
-        ):
-            return False
-        return True
-
-
 class FdbSource(DataSource):
     """
     Uses FDB as a backend.
@@ -264,47 +147,62 @@ class FdbSource(DataSource):
 
     def __init__(
         self,
-        fdb: pyfdb.FDB,
-        gribjump: pygribjump.GribJump,
-        mars_requests: list[dict],
-        start: np.datetime64,
-        stop: np.datetime64,
-        interval: np.timedelta64,
+        *,
+        extractor: str = "eccodes",
+        fdb: pyfdb.FDB | None = None,
+        gribjump: pygribjump.GribJump | None = None,
+        request: Request | list[Request],
     ) -> None:
+        if extractor == "eccodes":
+            self.extract = self._extract_with_eccodes
+        elif extractor == "gribjump":
+            self.extract = self._extract_with_gribjump
+        else:
+            raise ZfdbError("Unkown extractor specified.")
+        if not fdb:
+            fdb = pyfdb.FDB()
         self._fdb = fdb
+        if not gribjump:
+            gribjump = pygribjump.GribJump()
         self._gribjump = gribjump
-        self._mars_requests = mars_requests
-        self._start = start
-        self._stop = stop
-        self._interval = interval
-        self._gj = pygribjump.GribJump()
-        # TODO(kkratz): This needs to do the same as the anemoi datasets code: issue a
-        # query for one datetime and infer the layout from the returned data after
-        # joining all requests.
+        if isinstance(request, Request):
+            self._requests = [request]
+        else:
+            self._requests = request
 
-        # shape -> [datetime, field_id, ensemble, field_data]
-        dates_count = 1 + (stop - start) // interval
-        fields_count = self._extract_fields_count_from_mars_request(mars_requests)
+        ## INFO(TKR): Here in the retrieve call r[0] led to quite a strange request:
+        # Instead of selecting >20200101</20200102 the date was modified as such: 2
+        # This is due to selecting on a string instead of array, which returned the first index.
+        # Chunk axis has a _date entry like: _date: '20200101/20200102' instead of an array.
+        # There was an wrongly placed to_mars_representation in the init method of request
+        # I separated the into_mars function into one operating on dict for the transformation to a mars request dict
+        # and one function for the transformation of the individual values.
+        [print(r[0]) for r in self._requests]
+        streams = [self._fdb.retrieve(r[0]) for r in self._requests]
+        messages = itertools.chain.from_iterable(
+            [eccodes.StreamReader(s) for s in streams]
+        )
 
-        reference_mars_request = mars_requests[0].copy()
-        date, time = np.datetime_as_string(start, unit="s").split("T")
-        reference_mars_request["date"] = date.replace("-", "")
-        reference_mars_request["time"] = time.split(":")[0]
-        reference_mars_request.pop("grid", None)
+        field_count = 0
+        self._field_names = []
+        field_size = None
+        for msg in messages:
+            field_count += 1
+            self._field_names.append(
+                {"level": msg.get("level"), "name": msg.get("shortName")}
+            )
+            this_field_size = msg.get("numberOfDataPoints")
+            if not field_size:
+                field_size = this_field_size
+            elif field_size != this_field_size:
+                raise ZfdbError(
+                    f"Found different field sizes {field_size} and {this_field_size}"
+                )
 
-        first_field = next(self._fdb.list(reference_mars_request, keys=True))
-        msg = self._fdb.retrieve(first_field["keys"])
-        tmp_path = pathlib.Path("tmp.grib")
-        tmp_path.write_bytes(msg.read())
-
-        with open(tmp_path) as f:
-            gid = eccodes.codes_new_from_file(f, eccodes.CODES_PRODUCT_GRIB)
-            values_count = eccodes.codes_get(gid, "numberOfValues")
-            eccodes.codes_release(gid)
-        tmp_path.unlink()
-
-        self._shape = (int(dates_count), fields_count, int(1), values_count)
-        self._chunks = (1, fields_count, 1, values_count)
+        # TODO(kkratz): This needs to be made generic
+        num_chunks = len(self._requests[0].chunk_axis())
+        self._shape = (num_chunks, field_count, int(1), field_size)
+        self._chunks = (1, field_count, 1, field_size)
         self._chunks_per_dimension = tuple(
             [math.ceil(a / b) for (a, b) in zip(self._shape, self._chunks)]
         )
@@ -318,23 +216,7 @@ class FdbSource(DataSource):
         )
 
     def create_dot_zarr_attrs(self) -> DotZarrAttributes:
-        date, time = str(self._start).split("T")
-        time = time.split(":")[0]
-
-        def to_name(keys) -> str:
-            if keys["levtype"] == "pl":
-                return f"{keys['param']}_{keys['levelist']}"
-            return keys["param"]
-
-        listing = []
-        for request in self._mars_requests:
-            request = request.copy()
-            request["date"] = date.replace("-", "")
-            request["time"] = time
-            request.pop("grid", None)
-            listing += [to_name(i["keys"]) for i in self._fdb.list(request, keys=True)]
-
-        return DotZarrAttributes(variables=listing)
+        return DotZarrAttributes(variables=self._field_names)
 
     def chunks(self) -> tuple[int, ...]:
         return self._chunks_per_dimension
@@ -346,29 +228,7 @@ class FdbSource(DataSource):
             k < 0 or k >= limit for k, limit in zip(key, self._chunks_per_dimension)
         ):
             raise KeyError
-        # NOTE(kkratz): This codew only supports chunking along the datetime axis
-        t = self._start + self._interval * key[0]
-        date, time = str(t).split("T")
-        time = time.split(":")[0]
-        polyrequests = []
-        for request in self._mars_requests:
-            request = request.copy()
-            request["date"] = date.replace("-", "")
-            request["time"] = time
-            request.pop("grid", None)
-            polyrequests.append(
-                [
-                    (i["keys"], [(0, self._shape[3])])
-                    for i in self._fdb.list(request, keys=True)
-                ]
-            )
-        gj_results = [
-            self._gribjump.extract(polyrequest) for polyrequest in polyrequests
-        ]
-        buffer = np.zeros(self._chunks, dtype="float32")
-        for idx, field in enumerate(itertools.chain.from_iterable(gj_results)):
-            buffer[0, idx, 0, :] = field[0][0][0]
-        return buffer.tobytes()
+        return self.extract(key)
 
     def __contains__(self, key: tuple[int, ...]) -> bool:
         if len(key) != len(self._shape):
@@ -379,11 +239,28 @@ class FdbSource(DataSource):
             return False
         return True
 
-    @staticmethod
-    def _extract_fields_count_from_mars_request(mars_requests: list[dict]) -> int:
-        return sum(
-            [len(req["param"]) * len(req.get("level", [1])) for req in mars_requests]
-        )
+    def _extract_with_eccodes(self, key) -> bytes:
+        buffer = np.zeros(self._chunks, dtype="float32")
+        streams = [
+            eccodes.StreamReader(self._fdb.retrieve(r[key[0]])) for r in self._requests
+        ]
+        for idx, msg in enumerate(itertools.chain.from_iterable(streams)):
+            buffer[0, idx, 0, :] = msg.data
+        return buffer.tobytes()
+
+    def _extract_with_gribjump(self, key) -> bytes:
+        polyrequest = [
+            (list_result["keys"], [(0, self._shape[3])])
+            for list_result in itertools.chain.from_iterable(
+                [self._fdb.list(r[key[0]]) for r in self._requests]
+            )
+        ]
+
+        gj_result = self._gribjump.extract(polyrequest)
+        buffer = np.zeros(self._chunks, dtype="float32")
+        for idx, field in enumerate(gj_result):
+            buffer[0, idx, 0, :] = field[0][0][0]
+        return buffer.tobytes()
 
 
 def make_dates_source(
@@ -397,10 +274,22 @@ def make_dates_source(
 
 
 def make_lat_long_sources(
-    reference_mars_request: dict,
+    fdb: pyfdb.FDB,
+    request: dict,
 ) -> tuple[NDarraySource, NDarraySource]:
-    query_result = ekd.from_source("mars", reference_mars_request)
-    gp = query_result[0].grid_points()
-    return NDarraySource(
-        np.ndarray(len(gp[0]), dtype="float64", buffer=gp[0])
-    ), NDarraySource(np.ndarray(len(gp[1]), dtype="float64", buffer=gp[1]))
+    request = into_mars_request_dict(request)
+    msg = fdb.retrieve(request)
+    content = msg.read()
+    gid = eccodes.codes_new_from_message(bytes(content))
+    length = int(eccodes.codes_get(gid, "numberOfDataPoints"))
+    lat = np.ndarray(
+        length, dtype="float64", buffer=eccodes.codes_get_double_array(gid, "latitudes")
+    )
+    lon = np.ndarray(
+        length,
+        dtype="float64",
+        buffer=eccodes.codes_get_double_array(gid, "longitudes"),
+    )
+    eccodes.codes_release(gid)
+
+    return NDarraySource(lat), NDarraySource(lon)

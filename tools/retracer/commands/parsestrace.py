@@ -50,12 +50,12 @@ def parse_strace_file_into_database(
 ):
     # Tool expects strace to be collected with the following flags:
     # strace -ff --decode-fds=path -ttt -qqq -T -s0  -o
-    # '-ff'   
+    # '-ff'
     #       Follow forks and output into seperate files, the seperate files part is important
     #       because otherwise calls can be interrupted in the output and have to be put back together
     # '--decode-fds=path'
     #       Decode fds to allow context free parsing of syscalls
-    # '-ttt' 
+    # '-ttt'
     #       Use 'us' precision timestamps
     # '-qqq'
     #       Be quiet

@@ -1,6 +1,6 @@
 [project]
 name = 'zfdb'
-version = '2024.10'
+version = '2025.03'
 # TODO(kkratz): seperate general and test only dependencies
 dependencies = [
     'setuptools',
@@ -8,6 +8,7 @@ dependencies = [
     'cffi',
     'zarr~=2.18',
     'pyyaml',
+    'eccodes',
     'pyfdb@git+https://github.com/ecmwf/pyfdb.git@develop',
     'pygribjump@git+https://github.com/ecmwf/gribjump.git@develop',
     'ecmwf-api-client',

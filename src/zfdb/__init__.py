@@ -13,13 +13,14 @@ from .mapping import (
     make_anemoi_dataset_like_view,
     make_forecast_data_view,
 )
-from .request import Request
+from .request import ChunkAxisType, Request
 
 __all__ = [
+    "ChunkAxisType",
     "FdbZarrArray",
     "FdbZarrGroup",
     "FdbZarrMapping",
+    "Request",
     "make_anemoi_dataset_like_view",
     "make_forecast_data_view",
-    "Request",
 ]

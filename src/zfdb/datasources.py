@@ -13,7 +13,6 @@ Contains implementations of datasources and factory functions for crating them.
 
 import itertools
 import math
-import pathlib
 from functools import cache
 
 import eccodes
@@ -252,7 +251,7 @@ class FdbForecastDataSource(DataSource):
         ):
             return False
         return True
-    
+
     def _extract_with_eccodes(self, polyrequests) -> bytes:
         def foo(ff):
             msg = self._fdb.retrieve(ff)
@@ -262,10 +261,7 @@ class FdbForecastDataSource(DataSource):
             eccodes.codes_release(gid)
             return values
 
-
-        gj_results = [
-            foo(ff[0]) for ff in itertools.chain(*polyrequests) 
-        ]
+        gj_results = [foo(ff[0]) for ff in itertools.chain(*polyrequests)]
         buffer = np.zeros(self._chunks, dtype="float32")
         for idx, field in enumerate(gj_results):
             buffer[0, idx, 0, :] = field
@@ -419,9 +415,7 @@ class FdbSource(DataSource):
             eccodes.codes_release(gid)
             return values
 
-        gj_results = [
-            foo(ff[0]) for ff in itertools.chain(*polyrequests) 
-        ]
+        gj_results = [foo(ff[0]) for ff in itertools.chain(*polyrequests)]
         buffer = np.zeros(self._chunks, dtype="float32")
         for idx, field in enumerate(gj_results):
             buffer[0, idx, 0, :] = field
@@ -435,7 +429,6 @@ class FdbSource(DataSource):
         for idx, field in enumerate(itertools.chain.from_iterable(gj_results)):
             buffer[0, idx, 0, :] = field[0][0][0]
         return buffer.tobytes()
-
 
     @staticmethod
     def _extract_fields_count_from_mars_request(mars_requests: list[dict]) -> int:
@@ -455,10 +448,20 @@ def make_dates_source(
 
 
 def make_lat_long_sources(
-    reference_mars_request: dict,
+    fdb: pyfdb.FDB,
+    request: dict,
 ) -> tuple[NDarraySource, NDarraySource]:
-    query_result = ekd.from_source("mars", reference_mars_request)
-    gp = query_result[0].grid_points()
-    return NDarraySource(
-        np.ndarray(len(gp[0]), dtype="float64", buffer=gp[0])
-    ), NDarraySource(np.ndarray(len(gp[1]), dtype="float64", buffer=gp[1]))
+    msg = fdb.retrieve(request)
+    content = msg.read()
+    gid = eccodes.codes_new_from_message(bytes(content))
+    length = int(eccodes.codes_get(gid, "numberOfDataPoints"))
+    data = eccodes.codes_grib_get_data(gid)
+    eccodes.codes_release(gid)
+
+    lat = np.ndarray(length, dtype="float64")
+    lon = np.ndarray(length, dtype="float64")
+    for idx, data in enumerate(data):
+        lat[idx] = data["lat"]
+        lon[idx] = data["lon"]
+
+    return NDarraySource(lat), NDarraySource(lon)

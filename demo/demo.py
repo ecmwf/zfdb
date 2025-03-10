@@ -441,11 +441,10 @@ def dump_zarr_cmd(args):
             recipe=yaml.safe_load(args.recipe.read_text()),
             fdb=fdb,
             gribjump=gribjump,
-            extractor=args.extractor
+            extractor=args.extractor,
         )
     )
-    zarr.convenience.copy_store(store.store, zarr.DirectoryStore(args.out)) 
-
+    zarr.convenience.copy_store(store.store, zarr.DirectoryStore(args.out))
 
 
 def parse_cli_args():

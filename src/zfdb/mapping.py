@@ -13,7 +13,12 @@ import numpy as np
 import pyfdb
 import pygribjump
 
-from .datasources import FdbForecastDataSource, FdbSource, make_dates_source
+from .datasources import (
+    FdbForecastDataSource,
+    FdbSource,
+    make_dates_source,
+    make_lat_long_sources,
+)
 from .error import ZfdbError
 from .request import Request
 from .zarr import FdbZarrArray, FdbZarrGroup
@@ -146,11 +151,15 @@ def make_anemoi_dataset_like_view(
     if not gribjump:
         gribjump = pygribjump.GribJump()
 
-    reference_mars_request = mars_requests[0]
+    reference_mars_request = mars_requests[0].copy()
     date, time = start_date.split("T")
-    reference_mars_request["date"] = date
+    reference_mars_request["date"] = date.replace("-", "")
     reference_mars_request["time"] = time.split(":")[0]
-    # lat_src, lon_src = make_lat_long_sources(reference_mars_request)
+    reference_mars_request.pop("grid", None)
+    reference_mars_request = complete_keys(
+        fdb=fdb, mars_request_as_dict=reference_mars_request
+    )
+    lat_src, lon_src = make_lat_long_sources(fdb, reference_mars_request)
     return FdbZarrMapping(
         FdbZarrGroup(
             children=[
@@ -162,8 +171,8 @@ def make_anemoi_dataset_like_view(
                         interval=np.timedelta64(frequency[0], frequency[1]),
                     ),
                 ),
-                # FdbZarrArray(name="latitudes", datasource=lat_src),
-                # FdbZarrArray(name="longitudes", datasource=lon_src),
+                FdbZarrArray(name="latitudes", datasource=lat_src),
+                FdbZarrArray(name="longitudes", datasource=lon_src),
                 FdbZarrArray(
                     name="data",
                     datasource=FdbSource(
@@ -179,3 +188,12 @@ def make_anemoi_dataset_like_view(
             ]
         )
     )
+
+
+def complete_keys(*, fdb: pyfdb.FDB, mars_request_as_dict: dict):
+    list_iter = fdb.list(mars_request_as_dict, keys=True)
+    try:
+        res = next(list_iter)
+    except StopIteration:
+        raise ZfdbError(f"No data found for request {mars_request_as_dict}")
+    return {**res["keys"], **mars_request_as_dict}

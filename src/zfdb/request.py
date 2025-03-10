@@ -7,8 +7,11 @@
 # nor does it submit to any jurisdiction.
 
 from dataclasses import dataclass
+from datetime import datetime
 
 import numpy as np
+
+from zfdb.utils.date_mapping import mars_date_to_date, mars_time_to_time
 
 
 @dataclass(kw_only=True)
@@ -24,12 +27,26 @@ class Request:
     levtype: str = "sfc"
     level: None | list[str] = None
     ensemble_number: None | int = None
-    date_time: np.datetime64
+    date: None | list[str] = None
+    time: None | list[str] = None
+    date_times: None | list[np.datetime64] = None
     steps: list[int]
     params: list[str]
 
+    def __post_init__(self):
+        if self.date_times is None:
+            if self.date and self.time:
+                # Map dates and steps to date times
+                dates = [mars_date_to_date(date) for date in self.date]
+                times = [mars_time_to_time(date) for date in self.time]
+
+                self.date_times = [np.datetime64(datetime.combine(date, time)) for date in dates for time in times]
+        else:
+            if self.date and self.time:
+                raise RuntimeError("date_times are set but date and time are given. This is ambiguous.")
+
     def matches_on_time_axis(self, other) -> bool:
-        return self.date_time == other.date_time and self.steps == other.steps
+        return self.date_times == other._datetimes and self.steps == other.steps
 
     def as_mars_request_for_step_index(self, step_index: int) -> dict:
         res = {
@@ -40,8 +57,8 @@ class Request:
             "levtype": self.levtype,
             "step": str(self.steps[step_index]),
             "param": self._as_mars_list(self.params),
-            "date": self._as_mars_date(self.date_time),
-            "time": self._time_in_day(self.date_time),
+            "date": [self._as_mars_date(date_time) for date_time in self.date_times],
+            "time": [self._time_in_day(date_time) for date_time in self.date_times],
             "domain": "g",
         }
         if self.level:

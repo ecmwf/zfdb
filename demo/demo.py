@@ -104,7 +104,7 @@ def example_datasets() -> list[AnemoiExampleDataSet | ForecastExampleDataSet]:
                 zfdb.Request(
                     levtype="sfc",
                     steps=list(range(0, 48)),
-                    date_time=np.datetime64("2025-01-01T00:00:00"),
+                    date_times=[np.datetime64("2025-01-01T00:00:00")],
                     params=[
                         "165",
                         "166",
@@ -138,7 +138,7 @@ def example_datasets() -> list[AnemoiExampleDataSet | ForecastExampleDataSet]:
                         "1000",
                     ],
                     steps=list(range(0, 48)),
-                    date_time=np.datetime64("2025-01-01T00:00:00"),
+                    date_times=[np.datetime64("2025-01-01T00:00:00")],
                     params=["133", "130", "131", "132", "135", "129"],
                 ),
             ],

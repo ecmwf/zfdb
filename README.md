@@ -13,6 +13,68 @@ A zarr store implementation using [FDB](https://github.com/ecmwf/fdb) as an back
 
 This project is currently an experiment.
 
+## Usage
+
+> [!IMPORTANT]  
+>
+> In belows example the view into data in FDB is described by a dictionary of
+> mars keywords. It is important to know that you need to fully specify your
+> request otherwise no data will be returned. 
+>
+> How the resulting zarr array is chunked depends on the `chunk_axis`, this can
+> be on the date-time or on the step axis. Currently chunking can only be
+> enabled on one axis and always provides one chunk per value on that axis.
+> I.e. you cannot group multiple steps into one zarr chunk.
+
+Example:
+
+```python
+import numpy as np
+import zarr
+
+from zfdb import (
+    ChunkAxisType,
+    FdbSource,
+    FdbZarrArray,
+    FdbZarrGroup
+    FdbZarrMapping,
+    Request,
+)
+
+mapping = FdbZarrMapping(
+    FdbZarrGroup(
+        children=[
+            FdbZarrArray(
+                name="data",
+                datasource=FdbSource(
+                    request=[
+                        Request(
+                            request={
+                                "date": np.arange(
+                                    np.datetime64("2020-01-01"),
+                                    np.datetime64("2020-01-03"),
+                                ),
+                                "time": ["00", "06", "12", "18"],
+                                "class": "ea",
+                                "domain": "g",
+                                "expver": "0001",
+                                "stream": "oper",
+                                "type": "an",
+                                "step": "0",
+                                "levtype": "sfc",
+                                "param": ["10u", "10v"],
+                            },
+                            chunk_axis=ChunkAxisType.DateTime,
+                        )
+                    ]
+                ),
+            )
+        ]
+    )
+)
+store = zarr.open_group(mapping, mode="r")
+```
+
 ## How to run tests
 
 ### Downloading testdata

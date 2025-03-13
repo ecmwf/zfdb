@@ -12,16 +12,18 @@ import zarr
 import zarr.storage
 from support.util import compare_zarr_stores
 
-from zfdb import FdbZarrMapping
-from zfdb.datasources import (
+from zfdb import (
+    ChunkAxisType,
     ConstantValue,
     ConstantValueField,
     FdbSource,
+    FdbZarrArray,
+    FdbZarrGroup,
+    FdbZarrMapping,
+    Request,
+    make_anemoi_dataset_like_view,
     make_dates_source,
 )
-from zfdb.mapping import make_anemoi_dataset_like_view
-from zfdb.request import ChunkAxisType, Request
-from zfdb.zarr import FdbZarrArray, FdbZarrGroup
 
 
 def test_make_anemoi_dataset_like_view(read_only_fdb_setup) -> None:

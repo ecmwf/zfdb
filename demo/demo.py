@@ -66,6 +66,22 @@ def print_in_closest_unit(val_in_ns) -> str:
         return f"{val_in_ns / 10 ** (exp * 3)}{units[exp]}"
     raise ValueError
 
+def as_multibyte_str(val) -> str:
+    base_2_exp = math.log(val, 2)
+    if base_2_exp < 10:
+        return f"{val}B"
+    if base_2_exp < 20:
+        return f"{(val//2**10):.2f}KiB"
+    if base_2_exp < 30:
+        return f"{(val//2**20):.2f}MiB"
+    if base_2_exp < 40:
+        return f"{(val//2**30):.2f}GiB"
+    if base_2_exp < 50:
+        return f"{(val//2**40):.2f}TiB"
+    if base_2_exp < 60:
+        return f"{(val//2**50):.2f}PiB"
+    return val
+
 
 @dataclass(frozen=True)
 class AnemoiExampleDataSet:
@@ -469,6 +485,55 @@ def dump_zarr_cmd(args):
     zarr.convenience.copy_store(store.store, zarr.DirectoryStore(args.out))
 
 
+def throughput_test_cmd(args):
+    zarr_path = Path("dump.zarr")
+    if zarr_path.exists():
+        shutil.rmtree(zarr_path)
+    logger.info(f"Dumping zarr store to {zarr_path}")
+    fdb = open_database(args.database / "fdb_config.yaml")
+    gribjump = open_gribjump(args.database / "gribjump_config.yaml")
+    fdb_store = zarr.open_group(
+        zfdb.make_anemoi_dataset_like_view(
+            recipe=yaml.safe_load(args.recipe.read_text()),
+            fdb=fdb,
+            gribjump=gribjump,
+            extractor="eccodes",
+        )
+    )
+    zarr.convenience.copy_store(fdb_store.store, zarr.DirectoryStore(zarr_path))
+    zarr_store = zarr.open_group(zarr_path)
+    
+
+    total_bytes = math.prod([*zarr_store["data"].shape, 4])
+    chunk_bytes = math.prod([*zarr_store["data"].chunks, 4])
+    logger.info(f"Troughput Zarr [Chunk {as_multibyte_str(chunk_bytes)} / Total {as_multibyte_str(total_bytes)}]")
+
+    with tqdm.tqdm(
+        total=total_bytes,
+        unit="B",
+        unit_scale=True,
+        unit_divisor=1024,
+        smoothing=0.7,
+        mininterval=0.01,
+        ) as pbar:
+        for _ in zarr_store["data"]:
+            pbar.update(chunk_bytes)
+    
+    total_bytes = math.prod([*fdb_store["data"].shape, 4])
+    chunk_bytes = math.prod([*fdb_store["data"].chunks, 4])
+    logger.info(f"Troughput FDB [Chunk {as_multibyte_str(chunk_bytes)} / Total {as_multibyte_str(total_bytes)}]")
+    with tqdm.tqdm(
+        total=total_bytes,
+        unit="B",
+        unit_scale=True,
+        unit_divisor=1024,
+        smoothing=0.7,
+        mininterval=0.01,
+        ) as pbar:
+        for _ in fdb_store["data"]:
+            pbar.update(chunk_bytes)
+
+
 def parse_cli_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -606,6 +671,24 @@ def parse_cli_args():
         "recipe",
         help="path to anemoi like recipe.yaml describing the training data",
         type=Path,
+    )
+
+    troughput_test_parser = sub_parsers.add_parser(
+        "throughput-test",
+        help="Create  view into fdb and dump it to disk, then compare read troughput",
+    )
+    troughput_test_parser.set_defaults(func=throughput_test_cmd)
+    troughput_test_parser.add_argument(
+        "recipe",
+        help="path to anemoi like recipe.yaml describing the training data",
+        type=Path,
+    )
+    troughput_test_parser.add_argument(
+        "-d",
+        "--database",
+        type=Path,
+        help="Path to the database folder that contains configs, db_store and schema",
+        default=Path.cwd(),
     )
 
     return parser.parse_args()

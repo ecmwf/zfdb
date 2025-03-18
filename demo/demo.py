@@ -489,7 +489,6 @@ def throughput_test_cmd(args):
     zarr_path = Path("dump.zarr")
     if zarr_path.exists():
         shutil.rmtree(zarr_path)
-    logger.info(f"Dumping zarr store to {zarr_path}")
     fdb = open_database(args.database / "fdb_config.yaml")
     gribjump = open_gribjump(args.database / "gribjump_config.yaml")
     fdb_store = zarr.open_group(
@@ -500,6 +499,7 @@ def throughput_test_cmd(args):
             extractor="eccodes",
         )
     )
+    logger.info(f"Dumping zarr store to {zarr_path}")
     zarr.convenience.copy_store(fdb_store.store, zarr.DirectoryStore(zarr_path))
     zarr_store = zarr.open_group(zarr_path)
     

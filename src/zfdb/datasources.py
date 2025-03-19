@@ -12,17 +12,27 @@ Contains implementations of datasources and factory functions for crating them.
 """
 
 import itertools
+import logging
 import math
 from functools import cache
+from typing import override
 
 import eccodes
 import numpy as np
 import pyfdb
 import pygribjump
+from zarr.core.buffer.cpu import Buffer as CpuBuffer
 
 from .error import ZfdbError
 from .request import Request, into_mars_request_dict
-from .zarr import DataSource, DotZarrArray, DotZarrAttributes
+from .zarr import (
+    ChunkGridMetadata,
+    DataSource,
+    DotZarrArrayJson,
+    to_cpu_buffer,
+)
+
+log = logging.getLogger(__name__)
 
 
 class ConstantValue(DataSource):
@@ -34,20 +44,23 @@ class ConstantValue(DataSource):
     def __init__(self, value: int):
         self._value = value
 
-    def create_dot_zarr_array(self) -> DotZarrArray:
-        return DotZarrArray(
-            shape=(1,), chunks=(1,), dtype="int32", order="C", fill_value=self._value
+    @override
+    def create_dot_zarr_json(self) -> CpuBuffer:
+        return to_cpu_buffer(
+            DotZarrArrayJson(
+                shape=(1,),
+                chunk_grid=ChunkGridMetadata(chunks=(1,)),
+                data_type="int32",
+                fill_value=self._value,
+            )
         )
-
-    def create_dot_zarr_attrs(self) -> DotZarrAttributes:
-        return DotZarrAttributes()
 
     def chunks(self) -> tuple[int]:
         return (0,)
 
-    def __getitem__(self, _) -> bytes:
+    def __getitem__(self, _) -> CpuBuffer:
         # This tells zarr to use the fill value
-        raise KeyError
+        a = CpuBuffer.from_bytes(np.array([self._value]).tobytes())
 
     def __contains__(self, key) -> bool:
         return key == "0"
@@ -55,7 +68,7 @@ class ConstantValue(DataSource):
 
 class ConstantValueField(DataSource):
     """
-    This DataSource represents n-dimentsional data with a uniform constant value.
+    This DataSource represents n-dimensional data with a uniform constant value.
     Provided for testing.
     """
 
@@ -74,24 +87,23 @@ class ConstantValueField(DataSource):
             shape=(self._chunks), fill_value=self._value, dtype=np.int32, order="C"
         )
 
-    def create_dot_zarr_array(self) -> DotZarrArray:
-        return DotZarrArray(
-            shape=self._shape,
-            chunks=self._chunks,
-            dtype="int32",
-            order="C",
-            fill_value=self._value,
+    @override
+    def create_dot_zarr_json(self) -> CpuBuffer:
+        return to_cpu_buffer(
+            DotZarrArrayJson(
+                shape=self._shape,
+                chunk_grid=ChunkGridMetadata(chunks=self._chunks),
+                data_type="int32",
+                fill_value=self._value,
+            )
         )
-
-    def create_dot_zarr_attrs(self) -> DotZarrAttributes:
-        return DotZarrAttributes()
 
     def chunks(self) -> tuple[int]:
         return (0,)
 
-    def __getitem__(self, _) -> bytes:
+    def __getitem__(self, _) -> CpuBuffer:
         # This tells zarr to use the fill value
-        raise KeyError
+        return CpuBuffer.from_bytes(self._data.tobytes())
 
     def __contains__(self, key) -> bool:
         return False
@@ -105,31 +117,28 @@ class NDarraySource(DataSource):
     def __init__(self, array: np.ndarray) -> None:
         self._array = array
 
-    def create_dot_zarr_array(self) -> DotZarrArray:
-        return DotZarrArray(
-            shape=self._array.shape,
-            chunks=self._array.shape,
-            dtype=str(self._array.dtype),
-            order="C",
-            # TODO(kkratz): Replace hard-coded 'C'
-            # order=self._array.dtype.order,
+    @override
+    def create_dot_zarr_json(self) -> CpuBuffer:
+        return to_cpu_buffer(
+            DotZarrArrayJson(
+                shape=self._array.shape,
+                chunk_grid=ChunkGridMetadata(self._array.shape),
+                data_type="int32",
+            )
         )
-
-    def create_dot_zarr_attrs(self) -> DotZarrAttributes:
-        return DotZarrAttributes()
 
     def chunks(self) -> tuple[int, ...]:
         return (1,) * len(self._array.shape)
 
     @cache
-    def __getitem__(self, key: tuple[int, ...]) -> bytes:
+    def __getitem__(self, key: tuple[int, ...]) -> CpuBuffer:
         # TODO(kkratz): Currently duplicates memory used because of the caced copy of bytes,
         # but zarr does not work on a memoryview
         if len(key) != self._array.ndim:
             raise KeyError
         if any(x != 0 for x in key):
             raise KeyError
-        return self._array.tobytes()
+        return CpuBuffer.from_array_like(self._array)
 
     def __contains__(self, key) -> bool:
         if len(key) != self._array.ndim:
@@ -170,15 +179,12 @@ class FdbSource(DataSource):
         else:
             self._requests = request
 
-        ## INFO(TKR): Here in the retrieve call r[0] led to quite a strange request:
-        # Instead of selecting >20200101</20200102 the date was modified as such: 2
-        # This is due to selecting on a string instead of array, which returned the first index.
-        # Chunk axis has a _date entry like: _date: '20200101/20200102' instead of an array.
-        # There was an wrongly placed to_mars_representation in the init method of request
-        # I separated the into_mars function into one operating on dict for the transformation to a mars request dict
-        # and one function for the transformation of the individual values.
-        [print(r[0]) for r in self._requests]
+        log.debug(f"Building view from requests: {[(r[0]) for r in self._requests]}")
         streams = [self._fdb.retrieve(r[0]) for r in self._requests]
+        if any([x.size() == 0 for x in streams]):
+            raise ZfdbError(
+                "No data found for at least one of the MARS requests defining the view."
+            )
         messages = itertools.chain.from_iterable(
             [eccodes.StreamReader(s) for s in streams]
         )
@@ -207,21 +213,20 @@ class FdbSource(DataSource):
             [math.ceil(a / b) for (a, b) in zip(self._shape, self._chunks)]
         )
 
-    def create_dot_zarr_array(self) -> DotZarrArray:
-        return DotZarrArray(
-            shape=self._shape,
-            chunks=self._chunks,
-            dtype="float32",
-            order="C",
+    @override
+    def create_dot_zarr_json(self) -> CpuBuffer:
+        return to_cpu_buffer(
+            DotZarrArrayJson(
+                shape=self._shape,
+                chunk_grid=ChunkGridMetadata(chunks=self._chunks),
+                data_type="float32",
+            )
         )
-
-    def create_dot_zarr_attrs(self) -> DotZarrAttributes:
-        return DotZarrAttributes(variables=self._field_names)
 
     def chunks(self) -> tuple[int, ...]:
         return self._chunks_per_dimension
 
-    def __getitem__(self, key: tuple[int, ...]) -> bytes:
+    def __getitem__(self, key: tuple[int, ...]) -> CpuBuffer:
         if len(key) != len(self._shape):
             raise KeyError
         if any(
@@ -239,28 +244,31 @@ class FdbSource(DataSource):
             return False
         return True
 
-    def _extract_with_eccodes(self, key) -> bytes:
+    def _extract_with_eccodes(self, key) -> CpuBuffer:
         buffer = np.zeros(self._chunks, dtype="float32")
         streams = [
             eccodes.StreamReader(self._fdb.retrieve(r[key[0]])) for r in self._requests
         ]
         for idx, msg in enumerate(itertools.chain.from_iterable(streams)):
             buffer[0, idx, 0, :] = msg.data
-        return buffer.tobytes()
+        return CpuBuffer(np.ravel(buffer).view(dtype="b"))
 
-    def _extract_with_gribjump(self, key) -> bytes:
-        polyrequest = [
-            (list_result["keys"], [(0, self._shape[3])])
-            for list_result in itertools.chain.from_iterable(
-                [self._fdb.list(r[key[0]]) for r in self._requests]
-            )
+    def _extract_with_gribjump(self, key) -> CpuBuffer:
+        polyrequests = [
+            [
+                (list_result["keys"], [(0, self._shape[3])])
+                for list_result in self._fdb.list(r[key[0]], keys=True)
+            ]
+            for r in self._requests
         ]
 
-        gj_result = self._gribjump.extract(polyrequest)
+        gj_results = [
+            self._gribjump.extract(polyrequest) for polyrequest in polyrequests
+        ]
         buffer = np.zeros(self._chunks, dtype="float32")
-        for idx, field in enumerate(gj_result):
+        for idx, field in enumerate(itertools.chain.from_iterable(gj_results)):
             buffer[0, idx, 0, :] = field[0][0][0]
-        return buffer.tobytes()
+        return CpuBuffer.from_bytes(np.ravel(buffer).view(dtype="b"))
 
 
 def make_dates_source(

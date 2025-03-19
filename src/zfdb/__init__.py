@@ -15,7 +15,7 @@ from .datasources import (
 from .mapping import (
     FdbZarrArray,
     FdbZarrGroup,
-    FdbZarrMapping,
+    FdbZarrStore,
     make_anemoi_dataset_like_view,
     make_forecast_data_view,
 )
@@ -25,7 +25,7 @@ __all__ = [
     "ChunkAxisType",
     "FdbZarrArray",
     "FdbZarrGroup",
-    "FdbZarrMapping",
+    "FdbZarrStore",
     "Request",
     "make_anemoi_dataset_like_view",
     "make_forecast_data_view",

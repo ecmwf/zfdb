@@ -9,51 +9,67 @@
 # nor does it submit to any jurisdiction.
 
 
+import asyncio
 import json
 
-import fsspec
 import requests
 import zarr
 
 view = {
     "requests": [
         {
-            "cls": "od",
+            "class": "od",
             "stream": "oper",
             "expver": 1,
-            "typ": "fc",
+            "type": "fc",
             "levtype": "sfc",
-            "date_time": "2025-01-01T00:00:00",
-            "steps": [0, 1, 2, 3, 4],
-            "params": ["165", "166"],
+            "date": "2025-01-01",
+            "time": "0000",
+            "step": [0, 1, 2, 3, 4],
+            "param": ["165", "166"],
+            "domain": "g",
         },
         {
-            "cls": "od",
+            "class": "od",
             "stream": "oper",
             "expver": 1,
-            "typ": "fc",
+            "type": "fc",
             "levtype": "pl",
-            "level": ["50", "100"],
-            "date_time": "2025-01-01T00:00:00",
-            "steps": [0, 1, 2, 3, 4],
-            "params": ["133", "130"],
+            "levelist": ["50", "100"],
+            "date": "2025-01-01",
+            "time": "0000",
+            "step": [0, 1, 2, 3, 4],
+            "param": ["133", "130"],
+            "domain": "g",
         },
     ]
 }
 
-if __name__ == "__main__":
+
+async def main():
     url = "http://localhost:5000/create"
     headers = {"Content-Type": "application/json"}
     response = requests.post(url, headers=headers, data=json.dumps(view))
 
     print(response.content)
     hash = response.json()["hash"]
-    store = fsspec.get_mapper(f"http://localhost:5000/get/zarr/{hash}")
-    z_grp = zarr.open(store, mode="r")
+    z_grp = zarr.open_group(
+        f"http://localhost:5000/get/zarr/{hash}",
+        mode="r",
+        zarr_format=3,
+        use_consolidated=False,
+    )
+    session = await z_grp.store.fs.set_session()
 
-    print(z_grp.attrs)
+    print(z_grp.get("data").shape)
+    print(z_grp.get("data").chunks)
+    for idx in range(5):
+        print(idx)
+        print(z_grp.get("data")[idx][0][0][0:10])
 
-    for x in z_grp.attrs.items():
-        print(x)
+    await session.close()
 
-    print(z_grp["data"][0, 0, 0, 0:30])
+
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())

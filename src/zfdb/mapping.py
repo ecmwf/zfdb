@@ -6,12 +6,21 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+import json
+import logging
 import re
-from collections.abc import MutableMapping
+from collections.abc import Buffer
+from typing import AsyncIterator, Iterable
 
 import numpy as np
 import pyfdb
 import pygribjump
+from zarr.abc import store
+from zarr.core.buffer import default_buffer_prototype
+from zarr.core.buffer.core import Buffer as AbstractBuffer
+from zarr.core.buffer.core import BufferPrototype
+from zarr.core.buffer.cpu import Buffer as CpuBuffer
+from zarr.core.common import BytesLike
 
 from .datasources import (
     FdbSource,
@@ -21,8 +30,10 @@ from .error import ZfdbError
 from .request import ChunkAxisType, Request
 from .zarr import FdbZarrArray, FdbZarrGroup
 
+log = logging.getLogger(__name__)
 
-class FdbZarrMapping(MutableMapping):
+
+class FdbZarrStore(store.Store):
     """Provide access to FDB with a MutableMapping.
 
     .. note:: This is an experimental feature.
@@ -35,19 +46,54 @@ class FdbZarrMapping(MutableMapping):
     """
 
     def __init__(self, child: FdbZarrGroup | FdbZarrArray):
+        super().__init__(read_only=True)
+
         self._child = child
+        self._known_paths = self._build_paths(self._child)
+        self._zmetadata = self._consolidate()
 
-        def build_paths(item, parent_path=None) -> list[str]:
-            path = f"{parent_path}/{item.name}" if parent_path else item.name
-            files = [f"{path}/{f}" if path != "" else f for f in item.paths()]
-            if isinstance(item, FdbZarrGroup):
-                for child in item.children:
-                    files += build_paths(child, path)
-            return files
+    def _build_paths(self, item, parent_path=None) -> list[str]:
+        path = f"{parent_path}/{item.name}" if parent_path else item.name
+        files = [f"{path}/{f}" if path != "" else f for f in item.paths()]
 
-        self._known_paths = build_paths(self._child)
+        if isinstance(item, FdbZarrGroup):
+            for child in item.children:
+                files += self._build_paths(child, path)
 
-    def __getitem__(self, key):
+        return files
+
+    def _consolidate(self):
+        consolidated_metatdata = {"metadata": {}}
+
+        ENDINGS = ["zarr.json"]
+
+        filtered_paths = (
+            path
+            for path in self._known_paths
+            for key in ENDINGS
+            if path is not None and path.endswith(key)
+        )
+
+        for path in filtered_paths:
+            keys = path.split("/")
+            info = self._child[*keys]
+
+            if info is None:
+                continue
+
+            consolidated_metatdata["metadata"].update(
+                {path: json.loads(info.to_bytes())}
+            )
+
+        # Create Buffer
+        return CpuBuffer.from_bytes(json.dumps(consolidated_metatdata).encode("utf-8"))
+
+    async def __getitem__(self, key) -> AbstractBuffer | None:
+        if key == ".zmetadata":
+            return self._zmetadata
+        if key == "zarr.json":
+            return self._child._metadata
+
         keys = key.split("/")
         return self._child[*keys]
 
@@ -67,6 +113,70 @@ class FdbZarrMapping(MutableMapping):
 
     def __contains__(self, key) -> bool:
         return key in self._known_paths
+
+    def __eq__(self, value: object) -> bool:
+        return self._child == value._child and self._known_paths == value._known_paths
+
+    async def get(
+        self,
+        key: str,
+        prototype: BufferPrototype = default_buffer_prototype(),
+        byte_range: store.ByteRequest | None = None,
+    ) -> Buffer | None:
+        return await self.__getitem__(key)
+
+    def get_partial_values(
+        self,
+        prototype: BufferPrototype,
+        key_ranges: Iterable[tuple[str, store.ByteRequest | None]],
+    ) -> list[Buffer | None]:
+        pass
+
+    async def exists(self, key: str) -> bool:
+        return key in self._known_paths
+
+    @property
+    def supports_writes(self) -> bool:
+        return False
+
+    async def set(self, key: str, value: AbstractBuffer) -> None:
+        raise NotImplementedError()
+
+    async def set_if_not_exists(self, key: str, value: AbstractBuffer) -> None:
+        raise NotImplementedError()
+
+    async def _set_many(self, values: Iterable[tuple[str, AbstractBuffer]]) -> None:
+        return await super()._set_many(values)
+
+    @property
+    def supports_deletes(self) -> bool:
+        return False
+
+    async def delete(self, key: str) -> None:
+        raise NotImplementedError()
+
+    @property
+    def supports_partial_writes(self) -> bool:
+        return False
+
+    async def set_partial_values(
+        self, key_start_values: Iterable[tuple[str, int, BytesLike]]
+    ) -> None:
+        raise NotImplementedError()
+
+    @property
+    def supports_listing(self) -> bool:
+        return True
+
+    async def list(self) -> AsyncIterator[str]:
+        for i in self._known_paths:
+            yield i
+
+    def list_prefix(self, prefix: str) -> AsyncIterator[str]:
+        return self._child.list_prefix(prefix)
+
+    def list_dir(self, prefix: str) -> AsyncIterator[str]:
+        return self._build_paths(self._child, parent_path=prefix)
 
 
 def extract_mars_requests_from_recipe(recipe: dict):
@@ -136,7 +246,7 @@ def make_anemoi_dataset_like_view(
     gribjump: pygribjump.GribJump | None = None,
     recipe: dict,
     extractor: str = "eccodes",
-) -> FdbZarrMapping:
+) -> FdbZarrStore:
     # get common mars request part
     mars_requests = extract_mars_requests_from_recipe(recipe)
     if not fdb:
@@ -153,7 +263,7 @@ def make_anemoi_dataset_like_view(
     ]
 
     lat_src, lon_src = make_lat_long_sources(fdb, mars_requests[0])
-    return FdbZarrMapping(
+    return FdbZarrStore(
         FdbZarrGroup(
             children=[
                 # FdbZarrArray(
@@ -181,14 +291,14 @@ def make_forecast_data_view(
     fdb: pyfdb.FDB | None = None,
     gribjump: pygribjump.GribJump | None = None,
     request: Request | list[Request],
-) -> FdbZarrMapping:
+) -> FdbZarrStore:
     requests = request if isinstance(request, list) else [request]
     # if len(requests) > 1 and not all(
     #     map(lambda x: x[0].matches_on_time_axis(x[1]), zip(requests[:-1], requests[1:]))
     # ):
     #     raise ZfdbError("Requests are not matching on time axis")
 
-    return FdbZarrMapping(
+    return FdbZarrStore(
         FdbZarrGroup(
             children=[
                 FdbZarrArray(

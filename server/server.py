@@ -16,7 +16,6 @@ import os
 import pathlib
 import sys
 
-import numpy as np
 import pyfdb
 import pygribjump
 from flask import Flask, Response, jsonify, request
@@ -29,8 +28,6 @@ view_hashes = {}
 
 
 def map_requests_from_json(json) -> list[zfdb.Request]:
-    for r in json["requests"]:
-        r["date_time"] = np.datetime64(r["date_time"])
     return [
         zfdb.Request(request=r, chunk_axis=zfdb.ChunkAxisType.Step)
         for r in json["requests"]
@@ -71,21 +68,21 @@ def process_json():
 
 
 @app.route("/get/zarr/<hash>/<path:zarr_path>", methods=["GET"])
-def retrieve_zarr(hash, zarr_path):
+async def retrieve_zarr(hash, zarr_path):
     try:
         mapping = view_hashes[int(hash)]
     except KeyError:
         return Response(response=f"Couldn't find hash in {hash}", status=500)
 
     try:
-        content = mapping[zarr_path]
+        content = await mapping[zarr_path]
     except KeyError:
         return Response(
             response=f"Didn't find {zarr_path} for mapping of hash {int(hash)}",
             status=404,
         )
 
-    return Response(response=content, status=200)
+    return Response(response=content.to_bytes(), status=200)
 
 
 def log_environment():

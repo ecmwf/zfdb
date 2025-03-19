@@ -235,7 +235,9 @@ def create_callgraph(
             recipe=yaml.safe_load(dataset.recipe.read_text()),
             fdb=fdb,
             gribjump=gribjump,
-        )
+        ),
+        mode="r",
+        zarr_format=3,
     )
     import cProfile
 
@@ -261,7 +263,9 @@ def demo_performance_comparison(
             recipe=yaml.safe_load(dataset.recipe.read_text()),
             fdb=fdb,
             gribjump=gribjump,
-        )
+        ),
+        mode="r",
+        zarr_format=3,
     )
 
     print("Opening matching anemoi dataset")
@@ -308,7 +312,9 @@ def demo_aggeration(
             recipe=yaml.safe_load(dataset.recipe.read_text()),
             fdb=fdb,
             gribjump=gribjump,
-        )
+        ),
+        mode="r",
+        zarr_format=3,
     )
     variable_names = fdb_view["data"].attrs["variables"]
     means_per_sample = []
@@ -371,7 +377,9 @@ def profile_cmd(args):
                 recipe=yaml.safe_load(dataset.recipe.read_text()),
                 fdb=fdb,
                 gribjump=gribjump,
-            )
+            ),
+            mode="r",
+            zarr_format=3,
         )
     elif args.source == "fdb-fc":
         dataset = [
@@ -384,7 +392,9 @@ def profile_cmd(args):
                 request=dataset.requests,
                 fdb=fdb,
                 gribjump=gribjump,
-            )
+            ),
+            mode="r",
+            zarr_format=3,
         )
     elif args.source == "zarr-era5":
         dataset = [
@@ -411,7 +421,9 @@ def simulate_training_cmd(args):
             fdb=fdb,
             gribjump=gribjump,
             extractor=args.extractor,
-        )
+        ),
+        mode="r",
+        zarr_format=3,
     )
 
     data = store["data"]
@@ -450,7 +462,9 @@ def dump_zarr_cmd(args):
             fdb=fdb,
             gribjump=gribjump,
             extractor=args.extractor,
-        )
+        ),
+        mode="r",
+        zarr_format=3,
     )
     zarr.convenience.copy_store(store.store, zarr.DirectoryStore(args.out))
 
@@ -597,6 +611,12 @@ def parse_cli_args():
     return parser.parse_args()
 
 
+def initialize_logger():
+    global logger
+    logger = logging.getLogger(__name__)
+    logger.info("Begin")
+
+
 def main():
     args = parse_cli_args()
     if not args.verbose:
@@ -604,9 +624,7 @@ def main():
     logging.basicConfig(
         format="%(asctime)s %(message)s", stream=sys.stdout, level=logging.INFO
     )
-    global logger
-    logger = logging.getLogger(__name__)
-    logger.info("Begin")
+    initialize_logger()
     args.func(args)
 
 

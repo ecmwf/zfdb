@@ -17,7 +17,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import KW_ONLY, asdict, dataclass, field
 from functools import cache
-from typing import Any, AsyncIterator, Optional, Self, Sequence, override
+from typing import Any, AsyncIterator, Optional, Self, Sequence
 
 import numpy as np
 from zarr.core.buffer import Buffer
@@ -122,7 +122,6 @@ class DotZarrGroupJson:
     def asstring(self) -> str:
         return json.dumps(asdict(self), indent=2)
 
-    @override
     def __dict__(self):
         """
         get a python dictionary

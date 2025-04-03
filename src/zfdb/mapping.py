@@ -9,7 +9,6 @@
 import json
 import logging
 import re
-from collections.abc import Buffer
 from typing import AsyncIterator, Iterable
 
 import numpy as np
@@ -122,14 +121,14 @@ class FdbZarrStore(store.Store):
         key: str,
         prototype: BufferPrototype = default_buffer_prototype(),
         byte_range: store.ByteRequest | None = None,
-    ) -> Buffer | None:
+    ):
         return await self.__getitem__(key)
 
     def get_partial_values(
         self,
         prototype: BufferPrototype,
         key_ranges: Iterable[tuple[str, store.ByteRequest | None]],
-    ) -> list[Buffer | None]:
+    ) -> list:
         pass
 
     async def exists(self, key: str) -> bool:

@@ -15,7 +15,6 @@ import itertools
 import logging
 import math
 from functools import cache
-from typing import override
 
 import eccodes
 import numpy as np
@@ -44,7 +43,6 @@ class ConstantValue(DataSource):
     def __init__(self, value: int):
         self._value = value
 
-    @override
     def create_dot_zarr_json(self) -> CpuBuffer:
         return to_cpu_buffer(
             DotZarrArrayJson(
@@ -87,7 +85,6 @@ class ConstantValueField(DataSource):
             shape=(self._chunks), fill_value=self._value, dtype=np.int32, order="C"
         )
 
-    @override
     def create_dot_zarr_json(self) -> CpuBuffer:
         return to_cpu_buffer(
             DotZarrArrayJson(
@@ -117,7 +114,6 @@ class NDarraySource(DataSource):
     def __init__(self, array: np.ndarray) -> None:
         self._array = array
 
-    @override
     def create_dot_zarr_json(self) -> CpuBuffer:
         return to_cpu_buffer(
             DotZarrArrayJson(
@@ -213,7 +209,6 @@ class FdbSource(DataSource):
             [math.ceil(a / b) for (a, b) in zip(self._shape, self._chunks)]
         )
 
-    @override
     def create_dot_zarr_json(self) -> CpuBuffer:
         return to_cpu_buffer(
             DotZarrArrayJson(

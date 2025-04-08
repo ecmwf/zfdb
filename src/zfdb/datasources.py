@@ -267,7 +267,7 @@ class FdbSource(DataSource):
         ]
         buffer = np.zeros(self._chunks, dtype="float32")
         for idx, field in enumerate(itertools.chain.from_iterable(gj_results)):
-            buffer[0, idx, 0, :] = field[0][0][0]
+            buffer[0, idx, 0, :] = field.values
         return CpuBuffer.from_bytes(np.ravel(buffer).view(dtype="b"))
 
 

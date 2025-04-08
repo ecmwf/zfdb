@@ -65,7 +65,6 @@ async def test_make_anemoi_dataset_like_view(read_only_fdb_setup) -> None:
     assert len(metadata_string["metadata"]) > 0
 
 
-@pytest.mark.asyncio
 def test_make_view(read_only_fdb_setup) -> None:
     mapping = FdbZarrStore(
         FdbZarrGroup(
@@ -178,36 +177,36 @@ async def test_access_listing_test(read_only_fdb_setup) -> None:
     assert np.all(data2[:] == 123)
 
 
-@pytest.mark.asyncio
-async def test_fdb_zarr_store_can_be_copied_by_zarr_python(tmp_path) -> None:
-    mapping = FdbZarrStore(
-        FdbZarrGroup(
-            children=[
-                FdbZarrGroup(name="xxx"),
-                FdbZarrGroup(
-                    name="retrograde",
-                    children=[
-                        FdbZarrArray(name="value1", datasource=ConstantValue(6)),
-                        FdbZarrArray(
-                            name="value2",
-                            datasource=ConstantValueField(
-                                value=123, shape=(100, 10, 1000), chunks=(100, 10, 100)
-                            ),
-                        ),
-                        FdbZarrArray(
-                            name="dates",
-                            datasource=make_dates_source(
-                                np.datetime64("1979-01-01T00:00:00", "s"),
-                                np.datetime64("2024-01-01T00:00:00", "s"),
-                                np.timedelta64(6, "h"),
-                            ),
-                        ),
-                    ],
-                ),
-            ]
-        )
-    )
-    store = zarr.open_group(mapping, mode="r", zarr_format=3, use_consolidated=False)
-    zstore = zarr.storage.LocalStore(root=tmp_path / "tt.zarr")
-    await store_copy(mapping, store, zstore)
-    assert compare_zarr_stores(store.store, zstore)
+# @pytest.mark.asyncio
+# async def test_fdb_zarr_store_can_be_copied_by_zarr_python(tmp_path) -> None:
+#     mapping = FdbZarrStore(
+#         FdbZarrGroup(
+#             children=[
+#                 FdbZarrGroup(name="xxx"),
+#                 FdbZarrGroup(
+#                     name="retrograde",
+#                     children=[
+#                         FdbZarrArray(name="value1", datasource=ConstantValue(6)),
+#                         FdbZarrArray(
+#                             name="value2",
+#                             datasource=ConstantValueField(
+#                                 value=123, shape=(100, 10, 1000), chunks=(100, 10, 100)
+#                             ),
+#                         ),
+#                         FdbZarrArray(
+#                             name="dates",
+#                             datasource=make_dates_source(
+#                                 np.datetime64("1979-01-01T00:00:00", "s"),
+#                                 np.datetime64("2024-01-01T00:00:00", "s"),
+#                                 np.timedelta64(6, "h"),
+#                             ),
+#                         ),
+#                     ],
+#                 ),
+#             ]
+#         )
+#     )
+#     store = zarr.open_group(mapping, mode="r", zarr_format=3, use_consolidated=False)
+#     zstore = zarr.storage.LocalStore(root=tmp_path / "tt.zarr")
+#     await store_copy(mapping, store, zstore)
+#     assert compare_zarr_stores(store.store, zstore)

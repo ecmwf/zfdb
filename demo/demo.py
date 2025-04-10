@@ -7,11 +7,13 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 import argparse
+import datetime
 import logging
 import math
 import os
 import random
 import shutil
+import sqlite3
 import sys
 import time
 from collections import namedtuple
@@ -495,6 +497,8 @@ def dump_zarr_cmd(args):
 
 
 def throughput_test_cmd(args):
+    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    con = open_benchmarking_db()
     zarr_path = Path("dump.zarr")
     if zarr_path.exists():
         shutil.rmtree(zarr_path)
@@ -528,7 +532,12 @@ def throughput_test_cmd(args):
     logger.info(
         f"Troughput Zarr [Chunk {as_multibyte_str(chunk_bytes)} / Total {as_multibyte_str(total_bytes)}]"
     )
-
+    con.execute(
+        "INSERT INTO measurement(name) values(?)",
+        (f"read native zarr {now_str}",),
+    )
+    measurement_id = con.execute("SELECT max(id) FROM measurement").fetchone()[0]
+    t1 = time.perf_counter_ns()
     with tqdm.tqdm(
         total=total_bytes,
         unit="B",
@@ -538,6 +547,12 @@ def throughput_test_cmd(args):
         mininterval=0.01,
     ) as pbar:
         for _ in zarr_store["data"]:
+            t2 = time.perf_counter_ns()
+            con.execute(
+                "INSERT INTO event(measurement_id, name, time_ns) values(?,?,?)",
+                (measurement_id, "read_chunk", t2 - t1),
+            )
+            t1 = t2
             pbar.update(chunk_bytes)
 
     total_bytes = math.prod([*fdb_store["data"].shape, 4])
@@ -545,6 +560,12 @@ def throughput_test_cmd(args):
     logger.info(
         f"Troughput FDB [Chunk {as_multibyte_str(chunk_bytes)} / Total {as_multibyte_str(total_bytes)}]"
     )
+    con.execute(
+        "INSERT INTO measurement(name) values(?)",
+        (f"read fdb {now_str}",),
+    )
+    measurement_id = con.execute("SELECT max(id) FROM measurement").fetchone()[0]
+    t1 = time.perf_counter_ns()
     with tqdm.tqdm(
         total=total_bytes,
         unit="B",
@@ -554,7 +575,37 @@ def throughput_test_cmd(args):
         mininterval=0.01,
     ) as pbar:
         for _ in fdb_store["data"]:
+            t2 = time.perf_counter_ns()
+            con.execute(
+                "INSERT INTO event(measurement_id, name, time_ns) values(?,?,?)",
+                (measurement_id, "read_chunk", t2 - t1),
+            )
+            t1 = t2
             pbar.update(chunk_bytes)
+    con.commit()
+    con.close()
+
+
+def open_benchmarking_db(database: Path = Path.cwd() / "timings.sqlite"):
+    con = sqlite3.connect(database)
+    con.execute("PRAGMA foreign_keys = ON")
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS measurement(
+            id INTEGER PRIMARY KEY,
+            name TEXT
+        )
+    """)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS event(
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            time_ns INTEGER NOT NULL,
+            measurement_id INTEGER NOT NULL,
+            FOREIGN KEY(measurement_id) REFERENCES measurement(id)
+        )
+    """)
+    con.commit()
+    return con
 
 
 def parse_cli_args():

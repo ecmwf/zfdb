@@ -66,20 +66,21 @@ def print_in_closest_unit(val_in_ns) -> str:
         return f"{val_in_ns / 10 ** (exp * 3)}{units[exp]}"
     raise ValueError
 
+
 def as_multibyte_str(val) -> str:
     base_2_exp = math.log(val, 2)
     if base_2_exp < 10:
         return f"{val}B"
     if base_2_exp < 20:
-        return f"{(val//2**10):.2f}KiB"
+        return f"{(val // 2**10):.2f}KiB"
     if base_2_exp < 30:
-        return f"{(val//2**20):.2f}MiB"
+        return f"{(val // 2**20):.2f}MiB"
     if base_2_exp < 40:
-        return f"{(val//2**30):.2f}GiB"
+        return f"{(val // 2**30):.2f}GiB"
     if base_2_exp < 50:
-        return f"{(val//2**40):.2f}TiB"
+        return f"{(val // 2**40):.2f}TiB"
     if base_2_exp < 60:
-        return f"{(val//2**50):.2f}PiB"
+        return f"{(val // 2**50):.2f}PiB"
     return val
 
 
@@ -482,7 +483,15 @@ def dump_zarr_cmd(args):
         mode="r",
         zarr_format=3,
     )
-    zarr.convenience.copy_store(store.store, zarr.DirectoryStore(args.out))
+    zarr_path = args.out
+    ls = zarr.storage.LocalStore(zarr_path)
+    zarr_store = zarr.create_group(store=ls)
+    zarr_store.create_array(
+        "data", shape=store["data"].shape, chunks=store["data"].chunks, dtype="float32"
+    )
+
+    for idx, data in enumerate(store["data"]):
+        zarr_store["data"][idx] = data
 
 
 def throughput_test_cmd(args):
@@ -497,16 +506,28 @@ def throughput_test_cmd(args):
             fdb=fdb,
             gribjump=gribjump,
             extractor="eccodes",
-        )
+        ),
+        mode="r",
+        zarr_format=3,
     )
     logger.info(f"Dumping zarr store to {zarr_path}")
-    zarr.convenience.copy_store(fdb_store.store, zarr.DirectoryStore(zarr_path))
-    zarr_store = zarr.open_group(zarr_path)
-    
+    ls = zarr.storage.LocalStore(zarr_path)
+    zarr_store = zarr.create_group(store=ls)
+    zarr_store.create_array(
+        "data",
+        shape=fdb_store["data"].shape,
+        chunks=fdb_store["data"].chunks,
+        dtype="float32",
+    )
+
+    for idx, data in enumerate(fdb_store["data"]):
+        zarr_store["data"][idx] = data
 
     total_bytes = math.prod([*zarr_store["data"].shape, 4])
     chunk_bytes = math.prod([*zarr_store["data"].chunks, 4])
-    logger.info(f"Troughput Zarr [Chunk {as_multibyte_str(chunk_bytes)} / Total {as_multibyte_str(total_bytes)}]")
+    logger.info(
+        f"Troughput Zarr [Chunk {as_multibyte_str(chunk_bytes)} / Total {as_multibyte_str(total_bytes)}]"
+    )
 
     with tqdm.tqdm(
         total=total_bytes,
@@ -515,13 +536,15 @@ def throughput_test_cmd(args):
         unit_divisor=1024,
         smoothing=0.7,
         mininterval=0.01,
-        ) as pbar:
+    ) as pbar:
         for _ in zarr_store["data"]:
             pbar.update(chunk_bytes)
-    
+
     total_bytes = math.prod([*fdb_store["data"].shape, 4])
     chunk_bytes = math.prod([*fdb_store["data"].chunks, 4])
-    logger.info(f"Troughput FDB [Chunk {as_multibyte_str(chunk_bytes)} / Total {as_multibyte_str(total_bytes)}]")
+    logger.info(
+        f"Troughput FDB [Chunk {as_multibyte_str(chunk_bytes)} / Total {as_multibyte_str(total_bytes)}]"
+    )
     with tqdm.tqdm(
         total=total_bytes,
         unit="B",
@@ -529,7 +552,7 @@ def throughput_test_cmd(args):
         unit_divisor=1024,
         smoothing=0.7,
         mininterval=0.01,
-        ) as pbar:
+    ) as pbar:
         for _ in fdb_store["data"]:
             pbar.update(chunk_bytes)
 
